@@ -1,0 +1,129 @@
+{% extends 'crew_management/base.html' %} {# THIS MUST BE LINE 1, NO BLANK LINES OR CHARACTERS ABOVE IT #}
+{% load static %} {# THIS MUST BE LINE 2 #}
+
+{% block title %}Login - Crew Management System{% endblock %}
+
+{# This block defines the entire header-branding section specifically for the login page #}
+{% block header_branding_content %}
+    <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+    <div class="header-branding">
+        <h1>Mackinnon Mackenzie & Co.</h1> {# First line #}
+        <h1 class="second-line">of Pakistan (Private) Limited</h1> {# Second line #}
+        <p class="header-subtitle">Crew Management System</p> {# Subtitle as desired #}
+    </div>
+{% endblock header_branding_content %}
+
+{% block extra_head %}
+<style>
+    /* Specific styles for the Login page header */
+    .header-branding h1 {
+        white-space: nowrap; /* Prevents text from wrapping to the next line */
+        font-size: 1.6em; /* Adjust font size to fit the single line if needed */
+        color: var(--text-white); /* Force white color */
+        margin: 0;
+        line-height: 1; /* Ensure tight spacing for h1 elements */
+    }
+
+    .header-branding .second-line {
+        display: block; /* Ensure the second line is visible */
+        font-size: 1.2em; /* Adjust font size for the second line */
+        margin-top: 0; /* Remove top margin from base.html if any */
+        line-height: 1; /* Ensure tight spacing for h1 elements */
+    }
+
+    .header-subtitle {
+        font-size: 1.2em; /* Adjust font size for "Crew Management System" */
+        color: var(--link-color) !important; /* Force the subtitle to be green, overriding any default link color */
+        margin-top: 5px; /* Adjust spacing below the company name lines */
+        line-height: 1;
+    }
+
+    .header-logo {
+        display: block; /* Make it a block element to center it */
+        margin: 0 auto 10px auto; /* Center horizontally with margin below */
+        height: 80px; /* Make logo larger on login page */
+        width: auto; /* Maintain aspect ratio */
+        max-width: 100%; /* Ensure it doesn't overflow on small screens */
+    }
+
+    /* Original Login Form Styles (restored and adapted to base.html variables) */
+    .login-container {
+        max-width: 450px;
+        padding: 40px;
+        text-align: center;
+        margin: 50px auto;
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    }
+    .login-container h1 {
+        color: var(--text-white);
+        margin-bottom: 30px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 15px;
+    }
+    .login-form p {
+        margin-bottom: 20px;
+        text-align: left;
+        color: var(--text-light);
+    }
+    .login-form label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: var(--text-light);
+    }
+    /* This rule applies to the input fields within the paragraphs */
+    .login-form p input[type="text"],
+    .login-form p input[type="password"] {
+        width: 100%; /* Make them take full width of their parent <p> */
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background-color: var(--main-bg-dark);
+        color: var(--text-white);
+        box-sizing: border-box;
+    }
+    /* Login button: Ensure it is GREEN and spans the same width as the input fields */
+    .login-form .action-link-button {
+        width: 100%; /* This needs to be 100% because the form itself has no padding inside it and the input field's parent 'p' tags also have no padding. */
+        padding: 12px; /* Ensure larger padding */
+        font-size: 1.1em; /* Ensure larger font size */
+        background-color: var(--link-color); /* Force GREEN color */
+        color: var(--main-bg-dark); /* Dark text on button */
+        margin: 20px auto 0 auto; /* Center it below fields */
+        display: block; /* Ensure it's a block for 100% width */
+    }
+    .login-form .action-link-button:hover {
+        filter: brightness(90%); /* Subtle darken on hover */
+    }
+
+    /* Responsive adjustments for header on small screens */
+    @media (max-width: 768px) {
+        .header-logo {
+            height: 60px; /* Smaller logo on mobile */
+            margin-bottom: 5px;
+        }
+        .header-branding h1 {
+            font-size: 1.4em; /* Smaller on mobile to ensure it fits one line */
+        }
+        .header-subtitle {
+            font-size: 1em; /* Smaller on mobile */
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <h1>Login to CMS</h1>
+
+    <form method="post" class="login-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="action-link-button">Login</button>
+    </form>
+</div>
+{% endblock %}

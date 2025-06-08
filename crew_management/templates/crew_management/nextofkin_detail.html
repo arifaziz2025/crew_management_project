@@ -1,0 +1,56 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}Next of Kin: {{ nextofkin.full_name }}{% endblock %}
+
+{% block header_subtitle %}Next of Kin Details{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Next of Kin Detail page, using original hardcoded values to preserve exact look */
+    .profile-container { max-width: 800px; margin: auto; background-color: #2a2a4a; border: 1px solid #3a3a6a; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: #ffffff; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #3a3a6a; padding-bottom: 15px; }
+    .detail-section h2 { border-bottom: 1px solid #3a3a6a; padding-bottom: 10px; margin-top: 35px; color: #ffffff; font-size: 1.8em; }
+    .detail-item { margin-bottom: 12px; line-height: 1.6; }
+    .detail-item strong { display: inline-block; width: 180px; color: #c0c0c0; }
+    a { color: #8aff8a; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .action-link-button { background-color: #4a4a7a; color: #fff; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; }
+    .action-link-button:hover { background-color: #5a5a9a; }
+    .button-container { text-align: right; margin-top: 0px; margin-bottom: 20px; padding-top: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="profile-container">
+        <h1>Next of Kin: {{ nextofkin.full_name }}</h1>
+        <div class="button-container">
+            {% if request.user.is_staff or request.user == crew.user %}
+                <a href="{% url 'nextofkin_edit' pk=nextofkin.pk %}" class="action-link-button">Edit Record</a>
+            {% endif %}
+        </div>
+
+        <div class="detail-section">
+            <h2>Relationship Details</h2>
+            <div class="detail-item"><strong>Crew Member:</strong> <a href="{% url 'crew_profile_detail' pk=crew.pk %}">{{ crew.first_name }} {{ crew.last_name }}</a></div>
+            <div class="detail-item"><strong>Relation:</strong> {{ nextofkin.relation_with_seafarer }}</div>
+            <div class="detail-item"><strong>Father Name:</strong> {{ nextofkin.father_name }}</div>
+            <div class="detail-item"><strong>Date of Birth:</strong> {{ nextofkin.date_of_birth|date:"M j, Y" }} (Age: {{ nextofkin.age }})</div>
+            <div class="detail-item"><strong>CNIC No.:</strong> {{ nextofkin.cnic_no }}</div>
+            {% if nextofkin.cnic_copy %}
+                <div class="detail-item"><strong>CNIC Copy:</strong> <a href="{{ nextofkin.cnic_copy.url }}" target="_blank">View CNIC Copy</a></div>
+            {% endif %}
+            <div class="detail-item"><strong>Place of Birth:</strong> {{ nextofkin.place_of_birth }}</div>
+            <div class="detail-item"><strong>Country of Birth:</strong> {{ nextofkin.country_of_birth }}</div>
+            <div class="detail-item"><strong>Nationality:</strong> {{ nextofkin.nationality }}</div>
+            <div class="detail-item"><strong>Contact No.:</strong> {{ nextofkin.contact_no }}</div>
+            <div class="detail-item"><strong>Alternative No.:</strong> {{ nextofkin.alternative_no|default:"N/A" }}</div>
+            <div class="detail-item"><strong>Email ID:</strong> {{ nextofkin.email_id|default:"N/A" }}</div>
+        </div>
+
+        <p style="text-align: center; margin-top: 30px;">
+            <a href="{% url 'nextofkin_list_for_crew' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Next of Kin List</a>
+            <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
+            {# The "Back to Dashboard" link is removed as base.html provides a global one in the footer #}
+        </p>
+    </div>
+{% endblock %}

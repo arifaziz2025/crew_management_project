@@ -1,0 +1,68 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}Next of Kin for {{ crew.first_name }} {{ crew.last_name }}{% endblock %}
+
+{% block header_subtitle %}Next of Kin List{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Next of Kin List page, using original hardcoded values to preserve exact look */
+    .container { max-width: 900px; margin: auto; background-color: #2a2a4a; border: 1px solid #3a3a6a; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: #ffffff; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #3a3a6a; padding-bottom: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #3a3a6a; }
+    th { background-color: #3a3a6a; color: #ffffff; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr:hover { background-color: #353555; }
+    td a { color: #8aff8a; text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+    .no-data { text-align: center; padding: 20px; color: #b0b0b0; }
+    .action-link-button { background-color: #4a4a7a; color: #fff; padding: 8px 15px; border-radius: 4px; text-decoration: none; display: inline-block; margin-bottom: 20px; margin-right: 10px;}
+    .action-link-button:hover { background-color: #5a5a9a; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1>Next of Kin for {{ crew.first_name }} {{ crew.last_name }}</h1>
+        {% if request.user.is_staff or request.user == crew.user %}
+            <p>
+                <a href="{% url 'nextofkin_create' crew_pk=crew.pk %}" class="action-link-button">+ Add New Next of Kin</a>
+            </p>
+        {% endif %}
+
+        {% if next_of_kins %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Relation</th>
+                        <th>DOB</th>
+                        <th>Age</th>
+                        <th>Contact No.</th>
+                        <th>CNIC No.</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for nok in next_of_kins %}
+                    <tr>
+                        <td>{{ nok.full_name }}</td>
+                        <td>{{ nok.relation_with_seafarer }}</td>
+                        <td>{{ nok.date_of_birth|date:"M j, Y" }}</td>
+                        <td>{{ nok.age }}</td>
+                        <td>{{ nok.contact_no }}</td>
+                        <td>{{ nok.cnic_no }}</td>
+                        <td><a href="{% url 'nextofkin_detail' pk=nok.pk %}">View</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="no-data">No Next of Kin records found for this crew member.</p>
+        {% endif %}
+        <p style="text-align: center; margin-top: 20px;">
+            <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Profile</a>
+            {# The "Back to Dashboard" link is removed as base.html provides a global one in the footer #}
+        </p>
+    </div>
+{% endblock %}

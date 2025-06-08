@@ -1,0 +1,63 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}Appraisal for {{ appraisal.crew_member.first_name }}{% endblock %}
+
+{% block header_subtitle %}Appraisal Details{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles moved from original <head> section to preserve layout */
+    .profile-container { max-width: 800px; margin: auto; background-color: var(--card-bg); border: 1px solid var(--border-color); padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: var(--text-white); text-align: center; margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
+    .detail-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-top: 35px; color: var(--text-white); font-size: 1.8em; }
+    .detail-item { margin-bottom: 12px; line-height: 1.6; }
+    .detail-item strong { display: inline-block; width: 180px; color: var(--text-light); }
+    .action-link-button { background-color: var(--button-bg); color: var(--button-text); padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; }
+    .action-link-button:hover { background-color: var(--button-hover-bg); }
+    .button-container { text-align: right; margin-top: 0px; margin-bottom: 20px; padding-top: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="profile-container">
+        <h1>Appraisal for {{ crew.first_name }} {{ crew.last_name }}</h1>
+        <div class="button-container">
+            {% if request.user.is_staff or request.user == crew.user %}
+                <a href="{% url 'appraisal_edit' pk=appraisal.pk %}" class="action-link-button">Edit Appraisal</a>
+            {% endif %}
+        </div>
+
+        <div class="detail-section">
+            <h2>Appraisal Details</h2>
+            <div class="detail-item"><strong>Seafarer Name:</strong> {{ appraisal.seafarer_name }}</div>
+            <div class="detail-item"><strong>SSB No.:</strong> {{ appraisal.ssb_no|default:"N/A" }}</div>
+            <div class="detail-item"><strong>Client Name:</strong> {{ appraisal.client_name|default:"N/A" }}</div>
+            <div class="detail-item"><strong>Vessel Name:</strong>
+                {% if appraisal.vessel %}
+                    <a href="{% url 'vessel_detail' pk=appraisal.vessel.pk %}">{{ appraisal.vessel.name }}</a>
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+            <div class="detail-item"><strong>Evaluation Date:</strong> {{ appraisal.evaluation_date|date:"M j, Y" }}</div>
+            <div class="detail-item"><strong>Date Sign On:</strong> {{ appraisal.date_sign_on|date:"M j, Y" }}</div>
+            <div class="detail-item"><strong>Joining Port:</strong> {{ appraisal.joining_port }}</div>
+            <div class="detail-item"><strong>Date Sign Off:</strong> {{ appraisal.date_sign_off|date:"M j, Y" }}</div>
+            <div class="detail-item"><strong>Port of Discharge:</strong> {{ appraisal.port_of_discharge }}</div>
+            
+            {# Restoring Reason Signed Off to its original, separate position #}
+            <div class="detail-item"><strong>Reason Signed Off:</strong> <span>{{ appraisal.reason_signed_off|linebreaksbr }}</span></div>
+
+            <div class="detail-item"><strong>Total Score:</strong> {{ appraisal.total_score }}</div>
+            <div class="detail-item"><strong>Overall Score Obtained:</strong> {{ appraisal.overall_score_obtained }}</div>
+            
+            {# Restoring Remarks to its original, separate position #}
+            <div class="detail-item"><strong>Remarks:</strong> <span>{{ appraisal.remarks|linebreaksbr }}</span></div>
+        </div>
+
+        <p style="text-align: center; margin-top: 30px;">
+            <a href="{% url 'appraisal_list_for_crew' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Appraisals List</a>
+            <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
+        </p>
+    </div>
+{% endblock %}

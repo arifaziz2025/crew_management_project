@@ -1,0 +1,52 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block header_subtitle %}Appraisal Form{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Appraisal Form page, now using original hardcoded values to preserve exact look */
+    .form-container { max-width: 600px; margin: auto; background-color: var(--card-bg); border: 1px solid var(--border-color); padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: var(--text-white); text-align: center; margin-bottom: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
+    form p { margin-bottom: 15px; color: #c0c0c0; } /* Original color restored */
+    form label { display: block; margin-bottom: 5px; font-weight: bold; color: #e0e0e0; } /* Original color restored */
+    form input[type="text"], form input[type="email"], form input[type="tel"], form input[type="date"], form textarea, form select, form input[type="number"] {
+        width: calc(100% - 22px); padding: 10px; border: 1px solid #4a4a7a; border-radius: 4px; /* Original border color restored */
+        background-color: #3a3a6a; color: #e0e0e0; box-sizing: border-box; /* Original background and text colors restored */
+    }
+    form .helptext, form ul.errorlist { font-size: 0.9em; color: #b0b0b0; margin-top: 5px; } /* Original color restored */
+    form ul.errorlist { color: #ff6666; list-style-type: none; padding-left: 0; margin-bottom: 10px; } /* Original color restored */
+    form button[type="submit"] {
+        background-color: #8aff8a; color: #1a1a2e; border: none; padding: 12px 25px; border-radius: 4px; /* Original colors restored */
+        cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; margin-top: 20px; }
+    form button[type="submit"]:hover { background-color: #6bcc6b; } /* Original color restored */
+    /* Link styles were already fine or handled by base.html, no change */
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        <h1>{{ title }}</h1>
+
+        {# The messages block is removed as it's now handled by base.html #}
+
+        <form method="post">
+            {% csrf_token %}
+            {# This line, which renders your form fields, remains unchanged #}
+            {{ form.as_p }}
+            <button type="submit">{{ button_text }}</button>
+        </form>
+
+        <p>
+            {% if appraisal %} {# If editing an existing record #}
+                <a href="{% url 'appraisal_detail' pk=appraisal.pk %}">Back to Appraisal Details</a>
+            {% else %} {# If creating a new record #}
+                <a href="{% url 'appraisal_list_for_crew' crew_pk=crew.pk %}">Back to Appraisals List</a>
+            {% endif %}
+            <span style="margin: 0 10px;">|</span>
+            <a href="{% url 'crew_profile_detail' pk=crew.pk %}">Back to Crew Profile</a>
+            {# The "Back to Dashboard" link is removed as base.html provides a global one in the footer #}
+        </p>
+    </div>
+{% endblock %}

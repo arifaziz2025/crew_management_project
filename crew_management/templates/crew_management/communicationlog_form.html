@@ -1,0 +1,55 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block header_subtitle %}Communication Log Form{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Communication Log Form page, using original hardcoded values to preserve exact look */
+    .form-container { max-width: 600px; margin: auto; background-color: #2a2a4a; border: 1px solid #3a3a6a; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: #ffffff; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #3a3a6a; padding-bottom: 15px; }
+    form p { margin-bottom: 15px; color: #c0c0c0; }
+    form label { display: block; margin-bottom: 5px; font-weight: bold; color: #e0e0e0; }
+    form input[type="text"], form input[type="email"], form input[type="tel"], form input[type="date"], form textarea, form select {
+        width: calc(100% - 22px); padding: 10px; border: 1px solid #4a4a7a; border-radius: 4px;
+        background-color: #3a3a6a; color: #e0e0e0; box-sizing: border-box; }
+    form input[type="file"] {
+        padding: 5px; border: 1px solid #4a4a7a; border-radius: 4px;
+        background-color: #3a3a6a; color: #e0e0e0; width: 100%; box-sizing: border-box; }
+    form .helptext, form ul.errorlist { font-size: 0.9em; color: #b0b0b0; margin-top: 5px; }
+    form ul.errorlist { color: #ff6666; list-style-type: none; padding-left: 0; margin-bottom: 10px; }
+    form button[type="submit"] {
+        background-color: #8aff8a; color: #1a1a2e; border: none; padding: 12px 25px; border-radius: 4px;
+        cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; margin-top: 20px; }
+    form button[type="submit"]:hover { background-color: #6bcc6b; }
+    a { color: #8aff8a; text-decoration: none; margin-top: 10px; display: inline-block; }
+    a:hover { text-decoration: underline; }
+    /* .messages styles are removed as base.html handles global messages */
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        <h1>{{ title }}</h1>
+
+        {# The messages block is removed as it's now handled by base.html #}
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">{{ button_text }}</button>
+        </form>
+
+        <p>
+            {% if log %} {# If editing an existing record #}
+                <a href="{% url 'communicationlog_detail' pk=log.pk %}">Back to Log Details</a>
+            {% else %} {# If creating a new record #}
+                <a href="{% url 'communicationlog_list_for_crew' crew_pk=crew.pk %}">Back to Log List</a>
+            {% endif %}
+            <span style="margin: 0 10px;">|</span>
+            <a href="{% url 'crew_profile_detail' pk=crew.pk %}">Back to Crew Profile</a>
+            {# The "Back to Dashboard" link is removed as base.html provides a global one in the footer #}
+        </p>
+    </div>
+{% endblock %}

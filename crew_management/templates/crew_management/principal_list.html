@@ -1,0 +1,67 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}Principals Roster{% endblock %}
+
+{% block header_subtitle %}All Registered Principals{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Principals List page, using original hardcoded values to preserve exact look */
+    .container { max-width: 900px; margin: auto; background-color: #2a2a4a; border: 1px solid #3a3a6a; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: #ffffff; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #3a3a6a; padding-bottom: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #3a3a6a; }
+    th { background-color: #3a3a6a; color: #ffffff; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr:hover { background-color: #353555; }
+    td a { color: #8aff8a; text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+    .no-data { text-align: center; padding: 20px; color: #b0b0b0; }
+    .action-link-button { background-color: #4a4a7a; color: #fff; padding: 8px 15px; border-radius: 4px; text-decoration: none; display: inline-block; margin-bottom: 20px; margin-right: 10px;}
+    .action-link-button:hover { background-color: #5a5a9a; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1>Principals Roster</h1>
+        {% if request.user.is_staff %}
+            <p>
+                <a href="{% url 'principal_create' %}" class="action-link-button">+ Add New Principal</a>
+            </p>
+        {% endif %}
+
+        {% if principals %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Contact Person</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for principal in principals %}
+                    <tr>
+                        <td>{{ principal.id }}</td>
+                        <td>
+                            <a href="{% url 'principal_detail' pk=principal.id %}">
+                                {{ principal.name }}
+                            </a>
+                        </td>
+                        <td>{{ principal.contact_person|default:"N/A" }}</td>
+                        <td>{{ principal.email|default:"N/A" }}</td>
+                        <td>{{ principal.phone|default:"N/A" }}</td>
+                        <td><a href="{% url 'principal_detail' pk=principal.id %}">View</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="no-data">No principals found.</p>
+        {% endif %}
+        {# The "Back to Dashboard" link is removed as base.html provides a global one in the footer #}
+    </div>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}Agency Dashboard{% endblock %}
+
+{% block header_subtitle %}Dashboard Overview{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Dashboard page, supplementing base.html */
+    .dashboard-container {
+        max-width: 1200px; /* Wider container for dashboard */
+        margin: auto;
+        background-color: #2a2a4a;
+        border: 1px solid #3a3a6a;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Two columns */
+        gap: 30px; /* Space between grid items */
+    }
+    h1 {
+        color: #ffffff;
+        text-align: center;
+        margin-bottom: 30px;
+        grid-column: 1 / -1; /* Span across both columns */
+    }
+    .card {
+        background-color: #333355; /* Card background */
+        border: 1px solid #444477;
+        border-radius: 6px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .card h2 {
+        color: #8aff8a; /* Highlight for card titles */
+        margin-top: 0;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #444477;
+        padding-bottom: 10px;
+    }
+    .card p {
+        margin: 8px 0;
+        color: #c0c0c0;
+    }
+    .card ul {
+        list-style: none;
+        padding: 0;
+    }
+    .card ul li {
+        padding: 8px 0;
+        border-bottom: 1px dashed #444477;
+    }
+    .card ul li:last-child {
+        border-bottom: none;
+    }
+    .card ul li a {
+        color: #8aff8a;
+        text-decoration: none;
+    }
+    .card ul li a:hover {
+        text-decoration: underline;
+    }
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center; /* Added for vertical alignment of numbers */
+        padding: 5px 0;
+    }
+    .status-item strong {
+        color: #ffffff;
+    }
+    .status-item span {
+        background-color: #555;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.9em;
+    }
+    .alert-item {
+        color: #ffcccc; /* Light red for alerts */
+    }
+    .expiring-soon {
+        color: #ffff99; /* Yellow for expiring soon */
+    }
+    .expired {
+        color: #ff6666; /* Red for expired */
+    }
+    .signoff-soon {
+        color: #99ccff; /* Light blue for sign-offs */
+    }
+    .no-data {
+        text-align: center;
+        padding: 20px;
+        color: #b0b0b0;
+    }
+    .dashboard-links {
+        grid-column: 1 / -1; /* Span across both columns */
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #3a3a6a;
+        display: flex; /* Use flexbox for button alignment */
+        flex-wrap: wrap; /* Allow buttons to wrap */
+        justify-content: center; /* Center buttons horizontally */
+        gap: 15px; /* Space between buttons */
+    }
+    .dashboard-links a {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #4a4a7a;
+        color: #fff;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: background-color 0.3s ease;
+    }
+    .dashboard-links a:hover {
+        background-color: #5a5a9a;
+    }
+
+    /* For smaller screens, switch to single column layout */
+    @media (max-width: 768px) {
+        .dashboard-container {
+            grid-template-columns: 1fr;
+        }
+        .dashboard-links {
+            flex-direction: column; /* Stack buttons vertically on small screens */
+            align-items: center; /* Center stacked buttons */
+        }
+        .dashboard-links a {
+            width: calc(100% - 30px); /* Adjust button width for small screens */
+        }
+    }
+
+    /* **CRITICAL**: Precise header branding spacing for identical appearance */
+    /* Target elements directly and use !important for highest specificity */
+    /* Adjust line-height and margin-bottom very precisely to visually match import_crew_csv.html */
+    .header-logo {
+        margin-bottom: 5px !important; /* Keep gap below logo consistent */
+    }
+
+    .header-branding h1 {
+        margin-top: 0 !important;
+        margin-bottom: 7px !important; /* Adjusted for smaller gap after first line */
+        line-height: 1.1em !important; /* Tighter line height for the main heading */
+    }
+    .header-branding .second-line {
+        margin-top: 0 !important;
+        margin-bottom: 9px !important; /* Adjusted for smaller gap after second line */
+        line-height: 1.1em !important; /* Tighter line height for the second line */
+    }
+    .header-subtitle {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important; /* No bottom margin on subtitle */
+        line-height: 1.1em !important; /* Tighter line height for the subtitle */
+    }
+
+    /* Ensure consistent top and bottom padding of the entire header container */
+    .header-container {
+        padding-top: 10px !important; /* Force 10px top padding */
+        padding-bottom: 10px !important; /* Force 10px bottom padding */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="dashboard-container">
+        <h1>Agency Dashboard</h1>
+
+        <div class="card">
+            <h2>Crew Overview</h2>
+            <p><strong>Total Crew Members:</strong> {{ total_crew }}</p>
+            <h3>Crew by Status:</h3>
+            <ul>
+                {% for status, count in crew_status_counts.items %}
+                    <li class="status-item">
+                        <strong>{{ status }}:</strong> <span>{{ count }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>Document Alerts</h2>
+            <h3>Expiring Soon (next 6 months):</h3>
+            {% if expiring_documents %}
+                <ul>
+                    {% for doc in expiring_documents %}
+                        <li class="expiring-soon">
+                            <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
+                                {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expires: {{ doc.expiry_date|date:"M j, Y" }})
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="no-data">No documents expiring soon.</p>
+            {% endif %}
+
+            <h3>Recently Expired:</h3>
+            {% if expired_documents %}
+                <ul>
+                    {% for doc in expired_documents %}
+                        <li class="expired">
+                            <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
+                                {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expired: {{ doc.expiry_date|date:"M j, Y" }})
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="no-data">No recently expired documents.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Upcoming Crew Changes</h2>
+            <h3>Projected Sign-offs (next 2 months):</h3>
+            {% if upcoming_signoffs %}
+                <ul>
+                    {% for crew in upcoming_signoffs %}
+                        <li class="signoff-soon">
+                            <a href="{% url 'crew_profile_detail' pk=crew.id %}">
+                                {{ crew.first_name }} {{ crew.last_name }} (Rank: {{ crew.current_rank }}) - Sign-off: {{ crew.relieving_plan_date|date:"M j, Y" }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="no-data">No upcoming sign-offs.</p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Financial Snapshot</h2>
+            <p>{{ financial_summary_placeholder }}</p>
+            <p class="no-data">Detailed financial summary will be available here once financial modules are developed.</p>
+        </div>
+
+        <div class="dashboard-links">
+            {% if request.user.is_staff %}
+                <a href="{% url 'crew_list' %}">View Full Crew Roster</a>
+                <a href="{% url 'principal_list' %}">Manage Principals</a>
+                <a href="{% url 'vessel_list' %}">Manage Vessels</a>
+                <a href="/admin/">Go to Admin Panel</a>
+                <a href="{% url 'crew_create' %}">+ Add New Crew Member</a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

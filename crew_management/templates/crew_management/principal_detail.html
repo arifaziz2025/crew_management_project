@@ -1,0 +1,91 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}Principal: {{ principal.name }}{% endblock %}
+
+{% block header_subtitle %}Principal Details{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Principal Detail page, using original hardcoded values to preserve exact look */
+    .profile-container { max-width: 800px; margin: auto; background-color: #2a2a4a; border: 1px solid #3a3a6a; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: #ffffff; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #3a3a6a; padding-bottom: 15px; }
+    .detail-section h2 { border-bottom: 1px solid #3a3a6a; padding-bottom: 10px; margin-top: 35px; color: #ffffff; font-size: 1.8em; }
+    .detail-item { margin-bottom: 12px; line-height: 1.6; }
+    .detail-item strong { display: inline-block; width: 180px; color: #c0c0c0; }
+    a { color: #8aff8a; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .action-link-button { background-color: #4a4a7a; color: #fff; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; }
+    .action-link-button:hover { background-color: #5a5a9a; }
+    .button-container { text-align: right; margin-top: 20px; margin-bottom: 20px; } /* Adjust as needed */
+    .vessel-list ul { list-style: none; padding: 0; }
+    .vessel-list li { margin-bottom: 8px; }
+
+    /* **CRITICAL**: Precise header branding spacing for identical appearance */
+    /* Target elements directly and use !important for highest specificity */
+    /* Adjust line-height and margin-bottom very precisely to visually match import_crew_csv.html */
+    .header-logo {
+        margin-bottom: 5px !important; /* Keep gap below logo consistent */
+    }
+
+    .header-branding h1 {
+        margin-top: 0 !important;
+        margin-bottom: 7px !important; /* Adjusted for smaller gap after first line */
+        line-height: 1.1em !important; /* Tighter line height for the main heading */
+    }
+    .header-branding .second-line {
+        margin-top: 0 !important;
+        margin-bottom: 9px !important; /* Adjusted for smaller gap after second line */
+        line-height: 1.1em !important; /* Tighter line height for the second line */
+    }
+    .header-subtitle {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important; /* No bottom margin on subtitle */
+        line-height: 1.1em !important; /* Tighter line height for the subtitle */
+    }
+
+    /* Ensure consistent top and bottom padding of the entire header container */
+    .header-container {
+        padding-top: 10px !important; /* Force 10px top padding */
+        padding-bottom: 10px !important; /* Force 10px bottom padding */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="profile-container">
+        <h1>Principal: {{ principal.name }}</h1>
+        {# MOVED BUTTON CONTAINER HERE - after H1 and before the first detail section #}
+        <div class="button-container">
+            {% if request.user.is_staff %}
+                <a href="{% url 'principal_edit' pk=principal.pk %}" class="action-link-button">Edit Principal</a>
+            {% endif %}
+        </div>
+
+        <div class="detail-section">
+            <h2>Contact Information</h2>
+            <div class="detail-item"><strong>Contact Person:</strong> {{ principal.contact_person|default:"N/A" }}</div>
+            <div class="detail-item"><strong>Email:</strong> {{ principal.email|default:"N/A" }}</div>
+            <div class="detail-item"><strong>Phone:</strong> {{ principal.phone|default:"N/A" }}</div>
+            <div class="detail-item"><strong>Address:</strong> {{ principal.address|default:"N/A" }}</div>
+        </div>
+
+        <div class="detail-section">
+            <h2>Associated Vessels ({{ associated_vessels.count }})</h2>
+            {% if associated_vessels %}
+                <div class="vessel-list">
+                    <ul>
+                        {% for vessel in associated_vessels %}
+                            <li><a href="{% url 'vessel_detail' pk=vessel.pk %}">{{ vessel.name }} (IMO: {{ vessel.imo_number }})</a> - {{ vessel.vessel_type }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% else %}
+                <p class="no-data">No vessels associated with this principal.</p>
+            {% endif %}
+        </div>
+
+        <p style="text-align: center; margin-top: 30px;">
+            <a href="{% url 'principal_list' %}" class="action-link-button" style="margin-right: 10px;">Back to Principals List</a>
+        </p>
+    </div>
+{% endblock %}

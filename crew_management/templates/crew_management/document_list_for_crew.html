@@ -1,0 +1,90 @@
+{% extends 'crew_management/base.html' %}
+
+{% block title %}Documents for {{ crew.first_name }} {{ crew.last_name }}{% endblock %}
+
+{% block header_subtitle %}Document History{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Styles specific to Document List page, using original hardcoded values to preserve exact look */
+    .container { max-width: 900px; margin: auto; background-color: #2a2a4a; border: 1px solid #3a3a6a; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    h1 { color: #ffffff; text-align: center; margin-bottom: 30px; border-bottom: 1px solid #3a3a6a; padding-bottom: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #3a3a6a; }
+    th { background-color: #3a3a6a; color: #ffffff; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr:hover { background-color: #353555; }
+    td a { color: #8aff8a; text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+    .no-data { text-align: center; padding: 20px; color: #b0b0b0; }
+    .action-link-button { background-color: #4a4a7a; color: #fff; padding: 8px 15px; border-radius: 4px; text-decoration: none; display: inline-block; margin-bottom: 20px; margin-right: 10px;}
+    .action-link-button:hover { background-color: #5a5a9a; }
+    .expired-doc { color: #ff6666; font-weight: bold; } /* Red for expired */
+    .expiring-soon-doc { color: #ffff99; font-weight: bold; } /* Yellow for expiring soon */
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1>Documents for {{ crew.first_name }} {{ crew.last_name }}</h1>
+        {% if request.user.is_staff or request.user == crew.user %}
+            <p>
+                <a href="{% url 'document_create' crew_pk=crew.pk %}" class="action-link-button">+ Add New Document</a>
+            </p>
+        {% endif %}
+
+        {% if documents %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Document Name</th>
+                        <th>Type</th>
+                        <th>Number</th>
+                        <th>Issued</th>
+                        <th>Expires</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td>{{ doc.document_name }}</td>
+                        <td>{{ doc.document_type }}</td>
+                        <td>{{ doc.document_no }}</td>
+                        <td>{{ doc.issue_date|date:"M j, Y" }}</td>
+                        <td>
+                            {% if doc.expiry_date %}
+                                {% if doc.is_expired %}
+                                    <span class="expired-doc">{{ doc.expiry_date|date:"M j, Y" }} (Expired!)</span>
+                                {% elif doc.days_to_expiry <= 90 %} {# Expiring within 90 days #}
+                                    <span class="expiring-soon-doc">{{ doc.expiry_date|date:"M j, Y" }} ({{ doc.days_to_expiry }} days left)</span>
+                                {% else %}
+                                    {{ doc.expiry_date|date:"M j, Y" }}
+                                {% endif %}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if doc.is_expired %}
+                                Expired
+                            {% elif doc.expiry_date %}
+                                Valid
+                            {% else %}
+                                No Expiry
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'document_detail' pk=doc.pk %}">View</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="no-data">No documents found for this crew member.</p>
+        {% endif %}
+        <p style="text-align: center; margin-top: 20px;">
+            <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Profile</a>
+            {# The "Back to Dashboard" link is removed as base.html provides a global one in the footer #}
+        </p>
+    </div>
+{% endblock %}
