@@ -1,252 +1,460 @@
-{% extends 'crew_management/base.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crew Profile: {{ crew.first_name }} {{ crew.last_name }}</title>
+    <style>
+        /* Base Colors (from base_login_dashboard.html) */
+        :root {
+            --main-bg-dark: #1a1a2e;        /* Main page background */
+            --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
+            --border-color: #3a3a6a;        /* Borders and separators */
+            --text-light: #e0e0e0;          /* General light text */
+            --text-white: #ffffff;          /* Pure white for headings/important text */
+            --link-color: #8aff8a;          /* Green for primary links */
+            --button-bg: #4a4a7a;           /* Standard button background */
+            --button-hover-bg: #5a5a9a;     /* Standard button hover */
+            --messages-success: #4CAF50;
+            --messages-error: #f44336;
+            --messages-info: #2196F3;
+            --messages-warning: #ff9800;
+        }
 
-{% block title %}Crew Profile: {{ crew.first_name }} {{ crew.last_name }}{% endblock %}
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--main-bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-{% block header_subtitle %}Crew Member Profile{% endblock %}
+        /* --- NEW: Top Utility Bar for Logout Button --- */
+        .top-utility-bar {
+            background-color: var(--main-bg-dark); /* Matches body background */
+            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-end; /* Aligns content to the right */
+            align-items: center;
+            font-size: 0.9em;
+            color: var(--text-light);
+            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
+            border-bottom: 1px solid var(--border-color); /* Subtle separator */
+        }
 
-{% block extra_head %}
-<style>
-    /* Styles specific to Crew Profile Detail page */
-    .profile-pic {
-        width: 150px;
-        height: 150px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid var(--border-color);
-        box-shadow: 0 0 10px rgba(0,0,0,0.3);
-        flex-shrink: 0;
-    }
-    .profile-header {
-        display: flex;
-        align-items: center; /* Vertically align picture, info, and buttons in the main header row */
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 1px solid var(--border-color);
-        flex-wrap: wrap;
-        gap: 25px; /* Space between profile pic/info and button-group */
-    }
-    .profile-info { /* <--- MODIFIED RULE */
-        margin-left: 25px;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;   /* Vertically centers the text block */
-        align-items: flex-start;   /* ADD THIS LINE to left-align the text */
-        gap: 0px;
-    }
-    .profile-name { /* <--- MODIFIED RULE */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    .profile-name h1 {
-        margin: 5px 0;
-        color: var(--text-white);
-        font-size: 2.2em;
-        line-height: 1.2;
-    }
-    .profile-details { /* <--- MODIFIED RULE */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        margin-top: 0; /* Ensure no extra margin pushes details down */
-    }
-    .profile-details p { /* <--- MODIFIED RULE */
-        margin: 0; /* Remove all default margins */
-        color: var(--text-light);
-        font-size: 1.1em;
-        line-height: 1.3;
-    }
-    .profile-details p strong {
-        color: var(--text-light);
-    }
+        .top-utility-bar .action-link-button {
+            padding: 5px 10px; /* Smaller padding for button in this bar */
+            font-size: 0.8em; /* Smaller font size for button */
+            margin-left: 15px; /* Space between text and button */
+        }
 
-    /* --- Button Group Layout (No change from previous, just for completeness) --- */
-    .button-group {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 10px;
-        margin-left: auto;
-        flex-shrink: 0;
-        align-items: center;
-        max-width: 100%;
-    }
-    .button-group .action-link-button {
-        width: auto;
-        text-align: center;
-        padding: 10px 15px;
-        font-size: 0.95em;
-    }
-    @media (max-width: 768px) {
-        .button-group {
-            grid-template-columns: 1fr;
-            margin-left: 0;
+        /* --- HEADER STYLING --- */
+        .header-container {
+            background-color: var(--card-bg);
+            padding: 10px 20px; /* Consistent padding from base_login_dashboard.html */
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header-logo {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: 10px; /* Consistent margin from login/dashboard */
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .header-branding {
+            text-align: center;
+            margin-bottom: 0;
             width: 100%;
         }
-        .button-group .action-link-button {
-            width: calc(100% - 30px);
+        .header-branding h1 {
+            white-space: nowrap; /* Ensures text stays on a single line */
+            font-size: 2.2em; /* Consistent large font size */
+            color: var(--text-white);
+            margin: 0;
+            line-height: 1;
+            text-overflow: ellipsis;
+            overflow: hidden;
         }
-    }
 
+        .header-subtitle {
+            font-size: 1.2em; /* Consistent subtitle font size */
+            color: var(--link-color) !important;
+            margin-top: 5px; /* Consistent spacing */
+            line-height: 1;
+        }
 
-    /* Common container specific styling (from base.html, repeated for clarity) */
-    .profile-container {
-        max-width: 800px;
-    }
-    .detail-item { /* <--- MODIFIED RULE for wrapping fix */
-        display: flex;
-        flex-wrap: nowrap; /* Prevent content inside from wrapping */
-        align-items: flex-start; /* Align text on the first line */
-        gap: 10px; /* Space between strong and value */
-        margin-bottom: 12px; /* Consistent margin */
-        line-height: 1.6; /* Consistent line height */
-    }
-    .detail-item strong { /* <--- MODIFIED RULE for wrapping fix */
-        display: inline-block;
-        width: 150px; /* Adjusted width for labels to fit */
-        color: var(--text-light);
-        flex-shrink: 0; /* Prevent label from shrinking */
-    }
-    .detail-item span, .detail-item a { /* <--- NEW/MODIFIED RULE for wrapping fix */
-        flex-grow: 1; /* Allow value to take remaining space */
-        word-break: break-word; /* Allow long words to break */
-    }
-    .detail-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-top: 35px; color: var(--text-white); font-size: 1.8em; }
-    .main-details-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 30px;
-        margin-top: 30px;
-    }
-    .main-details-grid .detail-section {
-        margin-top: 0;
-        padding-top: 0;
-    }
-    .main-details-grid .detail-section h2 {
-        margin-top: 0;
-    }
-    .expired-doc { color: var(--message-error); font-weight: bold; }
-    .expiring-soon-doc { color: var(--message-warning); font-weight: bold; }
+        @media (max-width: 768px) { /* Adjust for mobile */
+            .top-utility-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0;
+                margin-top: 5px;
+            }
 
-    /* **CRITICAL**: Precise header branding spacing for identical appearance */
-    /* Target elements directly and use !important for highest specificity */
-    /* Adjust line-height and margin-bottom very precisely to visually match import_crew_csv.html */
-    .header-logo {
-        margin-bottom: 5px !important; /* Keep gap below logo consistent */
-    }
+            .header-container { padding: 10px; }
+            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+        }
 
-    .header-branding h1 {
-        margin-top: 0 !important;
-        margin-bottom: 7px !important; /* Adjusted for smaller gap after first line */
-        line-height: 1.1em !important; /* Tighter line height for the main heading */
-    }
-    .header-branding .second-line {
-        margin-top: 0 !important;
-        margin-bottom: 9px !important; /* Adjusted for smaller gap after second line */
-        line-height: 1.1em !important; /* Tighter line height for the second line */
-    }
-    .header-subtitle {
-        margin-top: 0 !important;
-        margin-bottom: 0 !important; /* No bottom margin on subtitle */
-        line-height: 1.1em !important; /* Tighter line height for the subtitle */
-    }
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
 
-    /* Ensure consistent top and bottom padding of the entire header container */
-    .header-container {
-        padding-top: 10px !important; /* Force 10px top padding */
-        padding-bottom: 10px !important; /* Force 10px bottom padding */
-    }
-</style>
-{% endblock %}
+        /* --- FOOTER STYLING --- */
+        .footer-container {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .footer-copyright {
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: var(--text-light);
+        }
+        /* --- COMMON BUTTONS & LINKS --- */
+        .action-link-button {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .action-link-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
 
-{% block content %}
-    <div class="profile-container">
-        <div class="profile-header">
-            {% if crew.profile_picture %}
-                <img src="{{ crew.profile_picture.url }}" alt="Profile Picture" class="profile-pic">
-            {% else %}
-                <img src="https://via.placeholder.com/150?text=No+Photo" alt="No Photo" class="profile-pic">
-            {% endif %}
-            <div class="profile-info">
-                <div class="profile-name">
-                    <h1>{{ crew.first_name }} {{ crew.last_name }}</h1>
-                </div>
-                <div class="profile-details">
-                    <p><strong>Seafarer Code:</strong> {{ crew.seafarer_code }}</p>
-                    <p><strong>Current Rank:</strong> {{ crew.current_rank }}</p>
-                    <p><strong>Crew Status:</strong> {{ crew.crew_status }}</p>
-                </div>
-            </div>
-            {% if request.user.is_staff or request.user == crew.user %}
-                <div class="button-group">
-                    <a href="{% url 'crew_profile_edit' pk=crew.pk %}" class="action-link-button">Edit Profile</a>
-                    <a href="{% url 'document_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Documents</a>
-                    <a href="{% url 'experience_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Experience</a>
-                    <a href="{% url 'nextofkin_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Next of Kin</a>
-                    <a href="{% url 'communicationlog_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Communication Log</a>
-                    <a href="{% url 'professionalreference_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Professional References</a>
-                    <a href="{% url 'appraisal_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Appraisals</a>
-                </div>
-            {% endif %}
+        /* --- MESSAGES (Django) --- */
+        .messages {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 10px auto;
+            max-width: 900px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        .messages .success { background-color: var(--messages-success); }
+        .messages .error { background-color: var(--messages-error); }
+        .messages .info { background-color: var(--messages-info); }
+        .messages .warning { background-color: var(--messages-warning); }
+        .no-data { text-align: center; padding: 20px; color: var(--text-light); }
+
+        /* --- COMMON CONTAINER STYLES (for pages like lists, forms, profiles) --- */
+        .container, .profile-container, .form-container, .edit-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            margin: 20px auto;
+        }
+        .profile-container, .edit-container, .form-container { max-width: 800px; }
+        .container { max-width: 900px; }
+
+        h1, h2, h3 {
+            color: var(--text-white);
+        }
+        .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        /* --- Crew Profile Detail Page Specific Styles --- */
+        .profile-pic {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--border-color);
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+        .profile-header {
+            display: flex;
+            align-items: center; /* Vertically align picture, info, and buttons in the main header row */
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 25px; /* Space between profile pic/info and button-group */
+        }
+        .profile-info {
+            margin-left: 25px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 0px;
+        }
+        .profile-name {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .profile-name h1 {
+            margin: 5px 0;
+            color: var(--text-white);
+            font-size: 2.2em; /* Adjusted for consistency with other page H1s */
+            line-height: 1.2;
+        }
+        .profile-details {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-top: 0;
+        }
+        .profile-details p {
+            margin: 0;
+            color: var(--text-light);
+            font-size: 1.1em;
+            line-height: 1.3;
+        }
+        .profile-details p strong {
+            color: var(--text-light);
+        }
+
+        /* --- Button Group Layout --- */
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-left: auto;
+            flex-shrink: 0;
+            align-items: center;
+            max-width: 100%;
+        }
+        .button-group .action-link-button {
+            width: auto;
+            text-align: center;
+            padding: 10px 15px;
+            font-size: 0.95em;
+        }
+        @media (max-width: 768px) {
+            .button-group {
+                grid-template-columns: 1fr;
+                margin-left: 0;
+                width: 100%;
+            }
+            .button-group .action-link-button {
+                width: calc(100% - 30px);
+            }
+        }
+
+        /* --- Detail Section Styling --- */
+        .detail-item {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+        .detail-item strong {
+            display: inline-block;
+            width: 150px;
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+        .detail-item span, .detail-item a {
+            flex-grow: 1;
+            word-break: break-word;
+        }
+        .detail-section h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-top: 35px; color: var(--text-white); font-size: 1.8em; }
+        .main-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .main-details-grid .detail-section {
+            margin-top: 0;
+            padding-top: 0;
+        }
+        .main-details-grid .detail-section h2 {
+            margin-top: 0;
+        }
+        .expired-doc { color: var(--messages-error); font-weight: bold; } /* Corrected variable name */
+        .expiring-soon-doc { color: var(--messages-warning); font-weight: bold; } /* Corrected variable name */
+
+        /* Specific header branding spacing from original crew_profile_detail.html is no longer needed with unified styles */
+    </style>
+</head>
+<body>
+    {# Top Utility Bar #}
+    <div class="top-utility-bar">
+        {% if request.user.is_authenticated %}
+            <span>Hello, {{ request.user.username }}!</span>
+            <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="action-link-button">Login</a>
+        {% endif %}
+    </div>
+
+    {# Header Container #}
+    <div class="header-container">
+        <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+        <div class="header-branding">
+            <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
+            <p class="header-subtitle">Crew Member Profile</p> {# Subtitle for Crew Profile Detail #}
         </div>
+    </div>
 
-        <div class="main-details-grid">
-            <div class="detail-section">
-                <h2>Personal Information</h2>
-                <div class="detail-item"><strong>Father's Name:</strong> <span>{{ crew.father_name }}</span></div>
-                <div class="detail-item"><strong>Date of Birth:</strong> <span>{{ crew.date_of_birth|date:"F j, Y" }} (Age: {{ crew.age }})</span></div>
-                <div class="detail-item"><strong>Place of Birth:</strong> <span>{{ crew.place_of_birth }}</span></div>
-                <div class="detail-item"><strong>Marital Status:</strong> <span>{{ crew.marital_status }}</span></div>
-                <div class="detail-item"><strong>Nationality:</strong> <span>{{ crew.nationality }}</span></div>
-                <div class="detail-item"><strong>City of Residence:</strong> <span>{{ crew.city_of_residence }}</span></div>
-            </div>
+    {# Django messages #}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
 
-            <div class="detail-section">
-                <h2>Contact Information</h2>
-                <div class="detail-item"><strong>Permanent Address:</strong> <span>{{ crew.address_permanent }}</span></div>
-                <div class="detail-item"><strong>Phone No:</strong> <span>{{ crew.phone_no }}</span></div>
-                <div class="detail-item"><strong>Mobile No:</strong> <span>{{ crew.mobile_no }}</span></div>
-                <div class="detail-item"><strong>Email ID:</strong> <span>{{ crew.email_id }}</span></div>
-                <div class="detail-item"><strong>Skype ID:</strong> <span>{{ crew.skype_id|default:"N/A" }}</span></div>
-                <div class="detail-item"><strong>Domestic Airport:</strong> <span>{{ crew.domestic_airport }}</span></div>
-                <div class="detail-item"><strong>Nearest International Airport:</strong> <span>{{ crew.nearest_international_airport }}</span></div>
-            </div>
-
-            <div class="detail-section">
-                <h2>Bank Account Details</h2>
-                <div class="detail-item"><strong>Account Title:</strong> <span>{{ crew.account_title }}</span></div>
-                <div class="detail-item"><strong>Account No.:</strong> <span>{{ crew.account_no }}</span></div>
-                <div class="detail-item"><strong>Bank Name:</strong> <span>{{ crew.bank_name }}</span></div>
-                <div class="detail-item"><strong>Branch:</strong> <span>{{ crew.branch_name_address }}</span></div>
-                <div class="detail-item"><strong>IBAN:</strong> <span>{{ crew.iban }}</span></div>
-                <div class="detail-item"><strong>SWIFT Code:</strong> <span>{{ crew.swift_code }}</span></div>
-                {% if crew.blank_cheque_leaf_copy %}
-                    <div class="detail-item">
-                        <strong>Blank Cheque:</strong> <span><a href="{{ crew.blank_cheque_leaf_copy.url }}" target="_blank">View Copy</a></span>
+    {# Main Content Area #}
+    <div class="main-content">
+        <div class="profile-container"> {# Original container from crew_profile_detail.html #}
+            <div class="profile-header">
+                {% if crew.profile_picture %}
+                    <img src="{{ crew.profile_picture.url }}" alt="Profile Picture" class="profile-pic">
+                {% else %}
+                    <img src="https://placehold.co/150x150/2a2a4a/e0e0e0?text=No+Photo" alt="No Photo" class="profile-pic">
+                {% endif %}
+                <div class="profile-info">
+                    <div class="profile-name">
+                        <h1>{{ crew.first_name }} {{ crew.last_name }}</h1>
+                    </div>
+                    <div class="profile-details">
+                        <p><strong>Seafarer Code:</strong> {{ crew.seafarer_code }}</p>
+                        <p><strong>Current Rank:</strong> {{ crew.current_rank }}</p>
+                        <p><strong>Crew Status:</strong> {{ crew.crew_status }}</p>
+                    </div>
+                </div>
+                {% if request.user.is_staff or request.user == crew.user %}
+                    <div class="button-group">
+                        <a href="{% url 'crew_profile_edit' pk=crew.pk %}" class="action-link-button">Edit Profile</a>
+                        <a href="{% url 'document_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Documents</a>
+                        <a href="{% url 'experience_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Experience</a>
+                        <a href="{% url 'nextofkin_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Next of Kin</a>
+                        <a href="{% url 'communicationlog_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Communication Log</a>
+                        <a href="{% url 'professionalreference_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Professional References</a>
+                        <a href="{% url 'appraisal_list_for_crew' crew_pk=crew.pk %}" class="action-link-button">Manage Appraisals</a>
                     </div>
                 {% endif %}
             </div>
 
-            <div class="detail-section">
-                <h2>Working Gear</h2>
-                <div class="detail-item"><strong>Height:</strong> <span>{{ crew.height_ft|default:"N/A" }} ft</span></div>
-                <div class="detail-item"><strong>Weight:</strong> <span>{{ crew.weight_kg|default:"N/A" }} kg</span></div>
-                <div class="detail-item"><strong>BMI:</strong> <span>{{ crew.bmi|default:"N/A" }}</span></div>
-                <div class="detail-item"><strong>Collar:</strong> <span>{{ crew.collar_cm|default:"N/A" }} cm</span></div>
-                <div class="detail-item"><strong>Chest:</strong> <span>{{ crew.chest_cm|default:"N/A" }} cm</span></div>
-                <div class="detail-item"><strong>Waist:</strong> <span>{{ crew.waist_cm|default:"N/A" }} cm</span></div>
-                <div class="detail-item"><strong>Shoes:</strong> <span>{{ crew.shoes_cm|default:"N/A" }} cm</span></div>
-                <div class="detail-item"><strong>Cap:</strong> <span>{{ crew.cap_cm|default:"N/A" }} cm</span></div>
-                <div class="detail-item"><strong>Inseam:</strong> <span>{{ crew.inseam_cm|default:"N/A" }} cm</span></div>
-                <div class="detail-item"><strong>Remarks:</strong> <span>{{ crew.working_gear_remarks|default:"N/A" }}</span></div>
-            </div>
+            <div class="main-details-grid">
+                <div class="detail-section">
+                    <h2>Personal Information</h2>
+                    <div class="detail-item"><strong>Father's Name:</strong> <span>{{ crew.father_name }}</span></div>
+                    <div class="detail-item"><strong>Date of Birth:</strong> <span>{{ crew.date_of_birth|date:"F j, Y" }} (Age: {{ crew.age }})</span></div>
+                    <div class="detail-item"><strong>Place of Birth:</strong> <span>{{ crew.place_of_birth }}</span></div>
+                    <div class="detail-item"><strong>Marital Status:</strong> <span>{{ crew.marital_status }}</span></div>
+                    <div class="detail-item"><strong>Nationality:</strong> <span>{{ crew.nationality }}</span></div>
+                    <div class="detail-item"><strong>City of Residence:</strong> <span>{{ crew.city_of_residence }}</span></div>
+                </div>
 
-        </div> {# END of main-details-grid #}
+                <div class="detail-section">
+                    <h2>Contact Information</h2>
+                    <div class="detail-item"><strong>Permanent Address:</strong> <span>{{ crew.address_permanent }}</span></div>
+                    <div class="detail-item"><strong>Phone No:</strong> <span>{{ crew.phone_no }}</span></div>
+                    <div class="detail-item"><strong>Mobile No:</strong> <span>{{ crew.mobile_no }}</span></div>
+                    <div class="detail-item"><strong>Email ID:</strong> <span>{{ crew.email_id }}</span></div>
+                    <div class="detail-item"><strong>Skype ID:</strong> <span>{{ crew.skype_id|default:"N/A" }}</span></div>
+                    <div class="detail-item"><strong>Domestic Airport:</strong> <span>{{ crew.domestic_airport }}</span></div>
+                    <div class="detail-item"><strong>Nearest International Airport:</strong> <span>{{ crew.nearest_international_airport }}</span></div>
+                </div>
 
-        {# The following "Back to Crew Roster" link is kept as it's context-specific #}
-        <p style="text-align: center; margin-top: 30px;">
-            <a href="{% url 'crew_list' %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Roster</a>
-        </p>
+                <div class="detail-section">
+                    <h2>Bank Account Details</h2>
+                    <div class="detail-item"><strong>Account Title:</strong> <span>{{ crew.account_title }}</span></div>
+                    <div class="detail-item"><strong>Account No.:</strong> <span>{{ crew.account_no }}</span></div>
+                    <div class="detail-item"><strong>Bank Name:</strong> <span>{{ crew.bank_name }}</span></div>
+                    <div class="detail-item"><strong>Branch:</strong> <span>{{ crew.branch_name_address }}</span></div>
+                    <div class="detail-item"><strong>IBAN:</strong> <span>{{ crew.iban }}</span></div>
+                    <div class="detail-item"><strong>SWIFT Code:</strong> <span>{{ crew.swift_code }}</span></div>
+                    {% if crew.blank_cheque_leaf_copy %}
+                        <div class="detail-item">
+                            <strong>Blank Cheque:</strong> <span><a href="{{ crew.blank_cheque_leaf_copy.url }}" target="_blank">View Copy</a></span>
+                        </div>
+                    {% endif %}
+                </div>
 
-    </div> {# <--- CLOSE .profile-container DIV #}
-{% endblock %}
+                <div class="detail-section">
+                    <h2>Working Gear</h2>
+                    <div class="detail-item"><strong>Height:</strong> <span>{{ crew.height_ft|default:"N/A" }} ft</span></div>
+                    <div class="detail-item"><strong>Weight:</strong> <span>{{ crew.weight_kg|default:"N/A" }} kg</span></div>
+                    <div class="detail-item"><strong>BMI:</strong> <span>{{ crew.bmi|default:"N/A" }}</span></div>
+                    <div class="detail-item"><strong>Collar:</strong> <span>{{ crew.collar_cm|default:"N/A" }} cm</span></div>
+                    <div class="detail-item"><strong>Chest:</strong> <span>{{ crew.chest_cm|default:"N/A" }} cm</span></div>
+                    <div class="detail-item"><strong>Waist:</strong> <span>{{ crew.waist_cm|default:"N/A" }} cm</span></div>
+                    <div class="detail-item"><strong>Shoes:</strong> <span>{{ crew.shoes_cm|default:"N/A" }} cm</span></div>
+                    <div class="detail-item"><strong>Cap:</strong> <span>{{ crew.cap_cm|default:"N/A" }} cm</span></div>
+                    <div class="detail-item"><strong>Inseam:</strong> <span>{{ crew.inseam_cm|default:"N/A" }} cm</span></div>
+                    <div class="detail-item"><strong>Remarks:</strong> <span>{{ crew.working_gear_remarks|default:"N/A" }}</span></div>
+                </div>
+
+            </div> {# END of main-details-grid #}
+
+            {# The following "Back to Crew Roster" link is kept as it's context-specific #}
+            <p style="text-align: center; margin-top: 30px;">
+                <a href="{% url 'crew_list' %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Roster</a>
+            </p>
+
+        </div> {# <--- CLOSE .profile-container DIV #}
+    </div>
+
+    {# Footer #}
+    <div class="footer-container">
+        <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
+        {# Conditional Back to Dashboard link in footer #}
+        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
+            <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document: {{ document.document_name }}</title>
+    <title>{% block title %}Crew Management System{% endblock %}</title>
     <style>
-        /* Base Colors (from base_login_dashboard.html) */
+        /* Base Colors */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -33,87 +33,93 @@
             flex-direction: column;
         }
 
-        /* --- NEW: Top Utility Bar for Logout Button --- */
-        .top-utility-bar {
-            background-color: var(--main-bg-dark); /* Matches body background */
-            padding: 10px 20px;
-            display: flex;
-            justify-content: flex-end; /* Aligns content to the right */
-            align-items: center;
-            font-size: 0.9em;
-            color: var(--text-light);
-            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
-            border-bottom: 1px solid var(--border-color); /* Subtle separator */
-        }
-
-        .top-utility-bar .action-link-button {
-            padding: 5px 10px; /* Smaller padding for button in this bar */
-            font-size: 0.8em; /* Smaller font size for button */
-            margin-left: 15px; /* Space between text and button */
-        }
-
-        /* --- HEADER STYLING --- */
+        /* --- HEADER STYLING for Login/Dashboard --- */
         .header-container {
             background-color: var(--card-bg);
-            padding: 10px 20px; /* Consistent padding */
+            padding: 10px 20px;
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            position: relative;
+            position: relative; /* Needed for absolute positioning of user-info */
             display: flex;
             flex-direction: column;
             align-items: center;
             flex-shrink: 0;
         }
 
+        /* User Info / Logout Button positioned absolutely within header-container */
+        .header-user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.9em;
+            color: var(--text-light);
+            position: absolute;
+            top: 10px; /* Aligns with the top of the header padding */
+            right: 20px; /* Aligns with the right edge of the header padding */
+            z-index: 10; /* Ensures it stays on top of other content */
+        }
+        .header-user-info .action-link-button {
+            padding: 5px 10px; /* Smaller padding for button in header */
+            font-size: 0.8em; /* Smaller font size for button */
+        }
+
         .header-logo {
             height: 80px;
             width: auto;
             max-width: 100%;
-            margin-bottom: 10px; /* Consistent margin from login/dashboard */
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
+            margin-bottom: 15px; /* Adjusted: Space below logo for company name */
+            display: block; /* Ensures it takes its own line for centering */
+            margin-left: auto; /* Centers logo horizontally */
+            margin-right: auto; /* Centers logo horizontally */
         }
 
         .header-branding {
             text-align: center;
             margin-bottom: 0;
-            width: 100%;
+            width: 100%; /* Ensures it spans the width for centering its content */
         }
         .header-branding h1 {
-            white-space: nowrap; /* Ensures text stays on a single line */
-            font-size: 2.2em; /* Consistent large font size */
-            color: var(--text-white);
             margin: 0;
-            line-height: 1;
-            text-overflow: ellipsis;
-            overflow: hidden;
+            font-size: 2.5em; /* Adjusted: Increased font size for company name to match screenshot */
+            color: var(--text-white);
+            line-height: 1.2; /* Vertical spacing for the text within itself */
+            border-bottom: none;
+            white-space: normal; /* Allow text to wrap if it's too long, prefer wrapping over cutting */
+            overflow: visible; /* Ensure content is not hidden */
+            text-overflow: clip; /* Ensure no ellipsis */
         }
 
         .header-subtitle {
-            font-size: 1.2em; /* Consistent subtitle font size */
-            color: var(--link-color) !important;
-            margin-top: 5px; /* Consistent spacing */
-            line-height: 1;
+            font-size: 1.1em;
+            color: var(--link-color);
+            margin-top: 10px; /* Adjusted: Space from company name to subtitle */
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Ensures subtitle is always centered */
+            width: 100%;
+            padding: 0; /* No padding for full edge alignment if centered */
+            box-sizing: border-box;
+            border-bottom: none;
         }
 
         @media (max-width: 768px) { /* Adjust for mobile */
-            .top-utility-bar {
-                flex-direction: column;
-                align-items: center;
-                gap: 5px;
-                padding: 5px 10px;
-            }
-            .top-utility-bar .action-link-button {
-                margin-left: 0;
-                margin-top: 5px;
-            }
-
             .header-container { padding: 10px; }
-            .header-logo { height: 60px; margin-bottom: 5px; }
-            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-user-info {
+                position: static; /* Stack on mobile */
+                margin-top: 10px;
+                justify-content: center;
+                width: 100%;
+                font-size: 0.8em;
+                flex-direction: column;
+                gap: 5px;
+                top: auto; /* Reset top */
+                right: auto; /* Reset right */
+            }
+            .header-logo { height: 60px; margin-bottom: 10px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; } /* Smaller font for mobile */
             .header-subtitle {
-                font-size: 1em;
+                font-size: 0.8em;
                 padding: 0;
                 margin-top: 5px;
             }
@@ -169,7 +175,7 @@
             margin: 10px auto;
             max-width: 900px;
             text-align: center;
-            box-sizing: border-sizing;
+            box-sizing: border-box;
         }
         .messages li {
             padding: 10px;
@@ -206,103 +212,120 @@
             padding-bottom: 15px;
         }
 
-        /* Styles specific to Document Detail page */
-        .profile-container { max-width: 800px; } /* Override common container to be 800px */
-        .detail-section h2 {
+        /* --- DASHBOARD SPECIFIC LAYOUT --- */
+        .dashboard-grid-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+        }
+
+        .dashboard-grid-layout .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+        }
+        .card h2, .card h3, .card p, .card ul { /* Ensured content within cards is left-aligned */
+            text-align: left;
+        }
+        .card h2 {
+            color: var(--text-white);
+            margin-top: 0;
+            margin-bottom: 15px;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
-            margin-top: 35px;
+        }
+        .card ul { /* Ensure lists within cards are properly formatted */
+            list-style: none;
+            padding-left: 0;
+            margin-top: 10px;
+        }
+        .card ul li {
+            border-bottom: 1px dashed var(--border-color);
+            padding: 5px 0;
+            margin-bottom: 5px;
+        }
+        .card ul li a {
+            color: var(--link-color);
+        }
+        /* Specific status colors */
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+        }
+        .status-item strong {
             color: var(--text-white);
-            font-size: 1.8em;
         }
-        .detail-item {
-            margin-bottom: 12px;
-            line-height: 1.6;
-        }
-        .detail-item strong {
-            display: inline-block;
-            width: 180px;
-            color: var(--text-light); /* Use variable for consistency */
-        }
-        .button-container {
-            text-align: right;
-            margin-top: 0px; /* Adjusted to remove extra top margin */
-            margin-bottom: 20px;
-            padding-top: 10px;
+        .status-item span {
+            background-color: var(--button-bg);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            white-space: nowrap;
         }
         .expired-doc { color: var(--messages-error); font-weight: bold; }
         .expiring-soon-doc { color: var(--messages-warning); font-weight: bold; }
+        .signoff-soon { color: var(--messages-info); }
+
+        .dashboard-links {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
     </style>
+    {# Block for page-specific CSS or JS #}
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-    {# Top Utility Bar #}
-    <div class="top-utility-bar">
-        {% if request.user.is_authenticated %}
-            <span>Hello, {{ request.user.username }}!</span>
-            <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
-        {% else %}
-            <a href="{% url 'login' %}" class="action-link-button">Login</a>
-        {% endif %}
-    </div>
-
-    {# Header Container #}
     <div class="header-container">
+        {# Logo is now centered due to its own margin: auto; and user info is absolute #}
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+
+        <div class="header-user-info">
+            {% if request.user.is_authenticated %}
+                <span>Hello, {{ request.user.username }}!</span>
+                <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+            {% else %}
+                {# Display login button for login page #}
+                <a href="{% url 'login' %}" class="action-link-button">Login</a>
+            {% endif %}
+        </div>
+
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Document Details</p> {# Subtitle for Document Details #}
         </div>
+
+        <p class="header-subtitle">{% block header_subtitle %}Crew Manning Agency Dashboard{% endblock %}</p>
     </div>
 
-    {# Django messages #}
+    {# Django messages go here #}
     <ul class="messages">
         {% for message in messages %}
             <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
         {% endfor %}
     </ul>
 
-    {# Main Content Area #}
     <div class="main-content">
-        <div class="profile-container"> {# Original container from document_detail.html #}
-            <h1>Document: {{ document.document_name }}</h1>
-            <div class="button-container">
-                {% if request.user.is_staff or request.user == crew.user %}
-                    <a href="{% url 'document_edit' pk=document.pk %}" class="action-link-button">Edit Document</a>
-                {% endif %}
-            </div>
-
-            <div class="detail-section">
-                <h2>Document Details</h2>
-                <div class="detail-item"><strong>Document Type:</strong> {{ document.document_type }}</div>
-                <div class="detail-item"><strong>Document No.:</strong> {{ document.document_no }}</div>
-                <div class="detail-item"><strong>Issued By:</strong> {{ document.place_of_issue }}, {{ document.issuing_country }}</div>
-                <div class="detail-item"><strong>Issue Date:</strong> {{ document.issue_date|date:"M j, Y" }}</div>
-                <div class="detail-item"><strong>Expiry Date:</strong>
-                    {% if document.expiry_date %}
-                        {% if document.is_expired %}
-                            <span class="expired-doc">{{ document.expiry_date|date:"M j, Y" }} (Expired!)</span>
-                        {% elif document.days_to_expiry <= 90 %}
-                            <span class="expiring-soon-doc">{{ document.expiry_date|date:"M j, Y" }} ({{ document.days_to_expiry }} days left)</span>
-                        {% else %}
-                            {{ document.expiry_date|date:"M j, Y" }}
-                        {% endif %}
-                    {% else %}
-                        N/A (No Expiry)
-                    {% endif %}
-                </div>
-                {% if document.document_file %}
-                    <div class="detail-item"><strong>Document File:</strong> <a href="{{ document.document_file.url }}" target="_blank">View Document</a></div>
-                {% endif %}
-            </div>
-
-            <p style="text-align: center; margin-top: 30px;">
-                <a href="{% url 'document_list_for_crew' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Documents List</a>
-                <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
-            </p>
-        </div>
+        {% block content %}
+            {# Content from individual templates will go here #}
+        {% endblock %}
     </div>
 
-    {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
         {# Conditional Back to Dashboard link in footer #}

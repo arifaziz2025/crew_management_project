@@ -1,77 +1,331 @@
-{% extends 'crew_management/base.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vessels Roster</title>
+    <style>
+        /* Base Colors */
+        :root {
+            --main-bg-dark: #1a1a2e;        /* Main page background */
+            --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
+            --border-color: #3a3a6a;        /* Borders and separators */
+            --text-light: #e0e0e0;          /* General light text */
+            --text-white: #ffffff;          /* Pure white for headings/important text */
+            --link-color: #8aff8a;          /* Green for primary links */
+            --button-bg: #4a4a7a;           /* Standard button background */
+            --button-hover-bg: #5a5a9a;     /* Standard button hover */
+            --messages-success: #4CAF50;
+            --messages-error: #f44336;
+            --messages-info: #2196F3;
+            --messages-warning: #ff9800;
+        }
 
-{% block title %}Vessels Roster{% endblock %}
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--main-bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
 
-{% block header_subtitle %}All Registered Vessels{% endblock %}
+        /* --- NEW: Top Utility Bar for Logout Button (Consistent alignment) --- */
+        .top-utility-bar {
+            background-color: var(--main-bg-dark); /* Matches body background */
+            padding: 10px 20px; /* Consistent padding */
+            display: flex;
+            justify-content: flex-end; /* Aligns content to the right */
+            align-items: center; /* Ensures vertical alignment */
+            font-size: 0.9em;
+            color: var(--text-light);
+            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
+            border-bottom: 1px solid var(--border-color); /* Subtle separator */
+            line-height: 1.2; /* Explicit line-height for better vertical alignment */
+        }
 
-{% block extra_head %}
-<style>
-    /* **CRITICAL**: Precise header branding spacing for identical appearance */
-    /* Target elements directly and use !important for highest specificity */
-    /* Adjust line-height and margin-bottom very precisely to visually match import_crew_csv.html */
-    .header-logo {
-        margin-bottom: 5px !important; /* Keep gap below logo consistent */
-    }
+        .top-utility-bar span,
+        .top-utility-bar .action-link-button {
+            vertical-align: middle; /* Ensure all inline-block elements align to middle */
+        }
 
-    .header-branding h1 {
-        margin-top: 0 !important;
-        margin-bottom: 7px !important; /* Adjusted for smaller gap after first line */
-        line-height: 1.1em !important; /* Tighter line height for the main heading */
-    }
-    .header-branding .second-line {
-        margin-top: 0 !important;
-        margin-bottom: 9px !important; /* Adjusted for smaller gap after second line */
-        line-height: 1.1em !important; /* Tighter line height for the second line */
-    }
-    .header-subtitle {
-        margin-top: 0 !important;
-        margin-bottom: 0 !important; /* No bottom margin on subtitle */
-        line-height: 1.1em !important; /* Tighter line height for the subtitle */
-    }
+        .top-utility-bar .action-link-button {
+            padding: 5px 10px; /* Consistent padding */
+            font-size: 0.8em; /* Smaller font size for button */
+            margin-left: 15px; /* Space between text and button */
+        }
 
-    /* Ensure consistent top and bottom padding of the entire header container */
-    .header-container {
-        padding-top: 10px !important; /* Force 10px top padding */
-        padding-bottom: 10px !important; /* Force 10px bottom padding */
-    }
-</style>
-{% endblock %}
+        /* --- HEADER STYLING --- */
+        .header-container {
+            background-color: var(--card-bg);
+            padding: 10px 20px; /* Consistent padding */
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
 
-{% block content %}
-    <div class="container">
-        <h1>Vessels Roster</h1>
-        {% if request.user.is_staff %}
-            <p>
-                <a href="{% url 'vessel_create' %}" class="action-link-button">+ Add New Vessel</a>
-            </p>
+        .header-logo {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: 10px; /* Consistent margin from login/dashboard */
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .header-branding {
+            text-align: center;
+            margin-bottom: 0;
+            width: 100%;
+        }
+        .header-branding h1 {
+            white-space: nowrap; /* Ensures text stays on a single line */
+            font-size: 2.2em; /* Consistent large font size */
+            color: var(--text-white);
+            margin: 0;
+            line-height: 1;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .header-subtitle {
+            font-size: 1.2em; /* Consistent subtitle font size */
+            color: var(--link-color) !important;
+            margin-top: 5px; /* Consistent spacing */
+            line-height: 1;
+        }
+
+        @media (max-width: 768px) { /* Adjust for mobile */
+            .top-utility-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+
+            .header-container { padding: 10px; }
+            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
+
+        /* --- FOOTER STYLING --- */
+        .footer-container {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .footer-copyright {
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: var(--text-light);
+        }
+        /* --- COMMON BUTTONS & LINKS --- */
+        .action-link-button {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .action-link-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- MESSAGES (Django) --- */
+        .messages {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 10px auto;
+            max-width: 900px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        .messages .success { background-color: var(--messages-success); }
+        .messages .error { background-color: var(--messages-error); }
+        .messages .info { background-color: var(--messages-info); }
+        .messages .warning { background-color: var(--messages-warning); }
+        .no-data { text-align: center; padding: 20px; color: var(--text-light); }
+
+        /* --- COMMON CONTAINER STYLES (for pages like lists, forms, profiles) --- */
+        .container, .profile-container, .form-container, .edit-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            margin: 20px auto;
+        }
+        .profile-container, .edit-container, .form-container { max-width: 800px; }
+        .container { max-width: 900px; } /* Specific for list pages */
+
+        h1, h2, h3 {
+            color: var(--text-white);
+        }
+        .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        /* Styles specific to Vessel List page */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: var(--card-bg); /* Use variable for consistency */
+            border: 1px solid var(--border-color); /* Use variable for consistency */
+            border-radius: 8px; /* Consistent with other containers */
+            overflow: hidden; /* Ensures rounded corners apply to table content */
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color); /* Use variable for consistency */
+            color: var(--text-light);
+        }
+        th {
+            background-color: var(--button-bg); /* Use variable for consistency */
+            color: var(--text-white);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        tr:nth-child(even) {
+            background-color: #2a2a4a; /* Alternate row background (use direct color for consistency with original) */
+        }
+        tr:hover {
+            background-color: var(--button-hover-bg); /* Use variable for consistency */
+        }
+        td a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        td a:hover {
+            text-decoration: underline;
+        }
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-light);
+        }
+        /* Adjustments for action buttons below h1 in vessel_list */
+        .container p {
+            text-align: center; /* Center the buttons */
+            margin-bottom: 20px;
+        }
+        .container p .action-link-button {
+            margin: 5px; /* Add some margin around buttons for spacing */
+        }
+    </style>
+</head>
+<body>
+    {# Top Utility Bar #}
+    <div class="top-utility-bar">
+        {% if request.user.is_authenticated %}
+            <span>Hello, {{ request.user.username }}!</span>
+            <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="action-link-button">Login</a>
         {% endif %}
+    </div>
 
-        {% if vessels %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>IMO Number</th>
-                        <th>Type</th>
-                        <th>Principal</th>
-                        <th>Details</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for vessel in vessels %}
-                    <tr>
-                        <td>{{ vessel.id }}</td>
-                        <td>
-                            <a href="{% url 'vessel_detail' pk=vessel.id %}">
-                                {{ vessel.name }}
-                            </a>
-                        </td>
-                        <td>{{ vessel.imo_number }}</td>
-                        <td>{{ vessel.vessel_type }}</td>
-                        <td>{{ vessel.associated_principal.name|default:"N/A" }}</td>
-                        <td><a href="{% url 'vessel_detail' pk=vessel.id %}">View</a></td>
-                    </tr>
+    {# Header Container #}
+    <div class="header-container">
+        <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+        <div class="header-branding">
+            <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
+            <p class="header-subtitle">All Registered Vessels</p> {# Subtitle for Vessels List #}
+        </div>
+    </div>
+
+    {# Django messages #}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    {# Main Content Area #}
+    <div class="main-content">
+        <div class="container">
+            <h1>Vessels Roster</h1>
+            {% if request.user.is_staff %}
+                <p>
+                    <a href="{% url 'vessel_create' %}" class="action-link-button">+ Add New Vessel</a>
+                </p>
+            {% endif %}
+
+            {% if vessels %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>IMO Number</th>
+                            <th>Type</th>
+                            <th>Principal</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vessel in vessels %}
+                        <tr>
+                            <td>{{ vessel.id }}</td>
+                            <td>
+                                <a href="{% url 'vessel_detail' pk=vessel.id %}">
+                                    {{ vessel.name }}
+                                </a>
+                            </td>
+                            <td>{{ vessel.imo_number }}</td>
+                            <td>{{ vessel.vessel_type }}</td>
+                            <td>{{ vessel.associated_principal.name|default:"N/A" }}</td>
+                            <td><a href="{% url 'vessel_detail' pk=vessel.id %}">View</a></td>
+                        </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -79,4 +333,16 @@
             <p class="no-data">No vessels found.</p>
         {% endif %}
     </div>
-{% endblock %}
+</div>
+
+    {# Footer #}
+    <div class="footer-container">
+        <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
+        {# Conditional Back to Dashboard link in footer #}
+        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
+            <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>
