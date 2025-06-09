@@ -116,7 +116,7 @@
             }
 
             .header-container { padding: 10px; }
-            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-logo { height: 60px; margin-bottom: 10px; }
             .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
             .header-subtitle {
                 font-size: 1em;
@@ -261,7 +261,29 @@
         .container p .action-link-button {
             margin: 5px; /* Add some margin around buttons for spacing */
         }
+        /* Style for delete buttons in table cells */
+        .delete-button {
+            background-color: var(--messages-error); /* Red for delete */
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: var(--text-white);
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+        }
+        .delete-button:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
     </style>
+    <script>
+        function confirmDelete(url) {
+            if (confirm("Are you sure you want to delete this record? This action cannot be undone.")) {
+                window.location.href = url;
+            }
+        }
+    </script>
 </head>
 <body>
     {# Top Utility Bar #}
@@ -310,6 +332,7 @@
                             <th>Type</th>
                             <th>Principal</th>
                             <th>Details</th>
+                            <th>Delete</th> {# New Delete Column #}
                         </tr>
                     </thead>
                     <tbody>
@@ -325,6 +348,13 @@
                             <td>{{ vessel.vessel_type }}</td>
                             <td>{{ vessel.associated_principal.name|default:"N/A" }}</td>
                             <td><a href="{% url 'vessel_detail' pk=vessel.id %}">View</a></td>
+                            <td>
+                                {% if request.user.is_staff %}
+                                <button class="delete-button" onclick="confirmDelete('{% url 'vessel_delete' pk=vessel.id %}')">Delete</button>
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

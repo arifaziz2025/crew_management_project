@@ -1,17 +1,17 @@
 import csv # For CSV handling
-import io # <--- ADD THIS LINE
-from django.http import HttpResponse # For sending file response
+import io 
+from django.http import HttpResponse 
 
 from django.shortcuts import render, get_object_or_404, Http404, redirect
-from .models import CrewMember, Document, Principal, Vessel, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal   # Ensure all needed models are imported
-from django.db.models import Count # For counting grouped data
-from django.utils import timezone # For current date/time calculations
-from datetime import timedelta # For date calculations
-from django.contrib.auth.decorators import login_required # For protecting views
-from django.contrib import messages # For displaying success/error messages
+from .models import CrewMember, Document, Principal, Vessel, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal   
+from django.db.models import Count 
+from django.utils import timezone 
+from datetime import timedelta 
+from django.contrib.auth.decorators import login_required 
+from django.contrib import messages 
 
-from crew_management.models import CrewMember # For conditional login redirect (Sub-Step 47.2)
-from .forms import CrewMemberProfileForm, PrincipalForm, VesselForm, DocumentForm, ExperienceHistoryForm, NextOfKinForm, CommunicationLogForm, ProfessionalReferenceForm, AppraisalForm  # <--- ADD DocumentForm here
+from crew_management.models import CrewMember 
+from .forms import CrewMemberProfileForm, PrincipalForm, VesselForm, DocumentForm, ExperienceHistoryForm, NextOfKinForm, CommunicationLogForm, ProfessionalReferenceForm, AppraisalForm  
 
 @login_required
 def dashboard_view(request):
@@ -146,13 +146,6 @@ def crew_profile_edit(request, pk):
     }
     return render(request, 'crew_management/crew_profile_edit.html', context)
 
-# ... (existing imports, ensure you have from django.contrib.auth.models import User)
-
-# Make sure you have User imported for potential default assignment if needed,
-# though it's not strictly necessary for this view's core logic.
-# from django.contrib.auth.models import User # (If not already present at top)
-
-# ... (all your existing views: dashboard_view, crew_list, crew_profile_detail, crew_profile_edit)
 
 @login_required
 def crew_create(request):
@@ -182,7 +175,35 @@ def crew_create(request):
     }
     return render(request, 'crew_management/crew_create.html', context)
 
-# ... (all your existing views) ...
+
+@login_required
+def crew_delete(request, pk):
+    """
+    Handles the deletion of a CrewMember record.
+    Only accessible by staff users.
+    Deletes the CrewMember and any related records that are set to CASCADE deletion.
+    """
+    crew_member = get_object_or_404(CrewMember, pk=pk)
+
+    # Authorization: Only staff users can delete crew members
+    if not request.user.is_staff:
+        messages.error(request, "You are not authorized to delete crew members.")
+        # Redirect to their own profile if unauthorized, or a generic unauthorized page
+        if request.user.is_authenticated and hasattr(request.user, 'crew_profile') and request.user.crew_profile:
+             return redirect('crew_profile_detail', pk=request.user.crew_profile.pk)
+        return redirect('dashboard') # Fallback for unauthorized non-staff
+
+    if request.method == 'GET': # Deletion triggered via a GET request from the button click
+        # In a real application, a POST request with CSRF token is safer for deletion.
+        # For this simple example, we're proceeding with GET as requested.
+        try:
+            crew_member.delete()
+            messages.success(request, f"Crew Member '{crew_member.first_name} {crew_member.last_name}' (ID: {pk}) has been successfully deleted.")
+        except Exception as e:
+            messages.error(request, f"Error deleting Crew Member '{crew_member.first_name} {crew_member.last_name}': {e}")
+
+    return redirect('crew_list') # Redirect back to the crew list after deletion attempt
+
 
 @login_required
 def export_crew_csv(request):
@@ -251,7 +272,6 @@ def export_crew_csv(request):
 
     return response
 
-# ... (all your existing views, including export_crew_csv) ...
 
 @login_required
 def import_crew_csv(request):
@@ -459,6 +479,7 @@ def import_crew_csv(request):
 
     return render(request, 'crew_management/import_crew_csv.html')
 
+
 # --- Principal Management Views ---
 @login_required
 def principal_list(request):
@@ -539,7 +560,35 @@ def principal_edit(request, pk):
     }
     return render(request, 'crew_management/principal_form.html', context)
 
-# ... (all your existing views, including Principal Management views) ...
+@login_required
+def principal_delete(request, pk):
+    """
+    Handles the deletion of a Principal record.
+    Only accessible by staff users.
+    """
+    principal = get_object_or_404(Principal, pk=pk)
+
+    # Authorization: Only staff users can delete principals
+    if not request.user.is_staff:
+        messages.error(request, "You are not authorized to delete principals.")
+        return redirect('principal_list') # Redirect back to the principals list
+
+    if request.method == 'GET': # Deletion triggered via a GET request from the button click
+        try:
+            # Check for related objects before deleting (e.g., vessels associated with this principal)
+            # Django's default CASCADE will delete related vessels/crew if configured.
+            # You might want to add a check here if you prefer to prevent deletion if associated vessels/crew exist
+            # For example:
+            # if principal.vessels.exists():
+            #    messages.error(request, f"Cannot delete Principal '{principal.name}' because it has associated vessels.")
+            #    return redirect('principal_detail', pk=principal.pk)
+
+            principal.delete()
+            messages.success(request, f"Principal '{principal.name}' (ID: {pk}) has been successfully deleted.")
+        except Exception as e:
+            messages.error(request, f"Error deleting Principal '{principal.name}': {e}")
+
+    return redirect('principal_list') # Redirect back to the principals list after deletion attempt
 
 # --- Vessel Management Views ---
 @login_required
@@ -621,7 +670,32 @@ def vessel_edit(request, pk):
     }
     return render(request, 'crew_management/vessel_form.html', context)
 
-# ... (all your existing views, including Vessel Management views) ...
+@login_required
+def vessel_delete(request, pk):
+    """
+    Handles the deletion of a Vessel record.
+    Only accessible by staff users.
+    """
+    vessel = get_object_or_404(Vessel, pk=pk)
+
+    # Authorization: Only staff users can delete vessels
+    if not request.user.is_staff:
+        messages.error(request, "You are not authorized to delete vessels.")
+        return redirect('vessel_list') # Redirect back to the vessels list
+
+    if request.method == 'GET': # Deletion triggered via a GET request from the button click
+        try:
+            # Check for related objects (CrewMembers assigned to this vessel)
+            if vessel.current_crew.exists():
+                messages.error(request, f"Cannot delete Vessel '{vessel.name}' because it has associated crew members.")
+                return redirect('vessel_detail', pk=vessel.pk) # Redirect back to vessel detail if cannot delete
+
+            vessel.delete()
+            messages.success(request, f"Vessel '{vessel.name}' (ID: {pk}) has been successfully deleted.")
+        except Exception as e:
+            messages.error(request, f"Error deleting Vessel '{vessel.name}': {e}")
+
+    return redirect('vessel_list') # Redirect back to the vessels list after deletion attempt
 
 # --- Document Management Views ---
 @login_required
@@ -720,7 +794,6 @@ def document_edit(request, pk): # Takes document pk to edit a specific document
     }
     return render(request, 'crew_management/document_form.html', context)
 
-# ... (all your existing views, including Document Management views) ...
 
 # --- Experience History Management Views ---
 @login_required
@@ -762,8 +835,7 @@ def experience_detail(request, pk): # Takes experience pk
 def experience_create(request, crew_pk): # Takes crew_pk to link new record to a specific crew
     crew_member = get_object_or_404(CrewMember, pk=crew_pk)
 
-    # Authorization: Staff can add experience for any crew.
-    # Crew can only add experience for their own profile.
+    # Authorization
     if not request.user.is_staff:
         if not request.user == crew_member.user:
             raise Http404("You are not authorized to add experience for this profile.")
@@ -804,7 +876,7 @@ def experience_edit(request, pk): # Takes experience pk to edit a specific recor
         form = ExperienceHistoryForm(request.POST, instance=experience)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Experience on '{experience.vessel_name}' updated successfully.")
+            messages.success(request, f"Experience on '{experience.vessel.name}' updated successfully.")
             return redirect('experience_list_for_crew', crew_pk=crew_member.pk)
         else:
             messages.error(request, "Please correct the errors below.")
@@ -815,12 +887,11 @@ def experience_edit(request, pk): # Takes experience pk to edit a specific recor
         'form': form,
         'experience': experience,
         'crew': crew_member,
-        'title': f'Edit Experience: {experience.vessel_name}',
+        'title': f'Edit Experience: {experience.vessel.name}',
         'button_text': 'Save Changes'
     }
     return render(request, 'crew_management/experience_form.html', context)
 
-# ... (all your existing views, including Experience History views) ...
 
 # --- Next of Kin Management Views ---
 @login_required
@@ -916,7 +987,6 @@ def nextofkin_edit(request, pk):
     }
     return render(request, 'crew_management/nextofkin_form.html', context)
 
-# ... (all your existing views, including Next of Kin views) ...
 
 # --- Communication Log Management Views ---
 @login_required
@@ -1016,7 +1086,6 @@ def communicationlog_edit(request, pk):
     }
     return render(request, 'crew_management/communicationlog_form.html', context)
 
-# ... (all your existing views, including Communication Log views) ...
 
 # --- Professional Reference Management Views ---
 @login_required
@@ -1095,7 +1164,7 @@ def professionalreference_edit(request, pk):
     if request.method == 'POST':
         form = ProfessionalReferenceForm(request.POST, instance=reference)
         if form.is_valid():
-            form.save() # Date field will be auto_now
+            form.save()
             messages.success(request, f"Professional Reference '{reference.contact_person}' updated successfully.")
             return redirect('professionalreference_list_for_crew', crew_pk=crew_member.pk)
         else:
@@ -1112,9 +1181,6 @@ def professionalreference_edit(request, pk):
     }
     return render(request, 'crew_management/professionalreference_form.html', context)
 
-# ... (all your existing views, including Professional Reference views) ...
-
-# --- Appraisal Management Views ---
 @login_required
 def appraisal_list_for_crew(request, crew_pk):
     crew_member = get_object_or_404(CrewMember, pk=crew_pk)

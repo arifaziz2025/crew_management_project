@@ -205,11 +205,10 @@
         h1, h2, h3 {
             color: var(--text-white);
         }
-        /* MODIFIED: Removed border-bottom for h1 within these containers */
         .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: none; /* REMOVED LINE */
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 15px;
         }
 
@@ -262,7 +261,29 @@
         .action-link-button:hover {
             background-color: var(--button-hover-bg); /* Use variable for consistency */
         }
+        /* Style for delete buttons in table cells */
+        .delete-button {
+            background-color: var(--messages-error); /* Red for delete */
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: var(--text-white);
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+        }
+        .delete-button:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
     </style>
+    <script>
+        function confirmDelete(url) {
+            if (confirm("Are you sure you want to delete this record? This action cannot be undone.")) {
+                window.location.href = url;
+            }
+        }
+    </script>
 </head>
 <body>
     {# Top Utility Bar #}
@@ -311,6 +332,7 @@
                             <th>Email</th>
                             <th>Phone</th>
                             <th>Details</th>
+                            <th>Delete</th> {# New Delete Column #}
                         </tr>
                     </thead>
                     <tbody>
@@ -326,6 +348,13 @@
                             <td>{{ principal.email|default:"N/A" }}</td>
                             <td>{{ principal.phone|default:"N/A" }}</td>
                             <td><a href="{% url 'principal_detail' pk=principal.id %}">View</a></td>
+                            <td>
+                                {% if request.user.is_staff %}
+                                <button class="delete-button" onclick="confirmDelete('{% url 'principal_delete' pk=principal.id %}')">Delete</button>
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

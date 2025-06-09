@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crew Roster</title> {# Title is now static for this page #}
     <style>
-        /* Base Colors (from base_login_dashboard.html) */
+        /* Base Colors (from your working files) */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -33,21 +33,27 @@
             flex-direction: column;
         }
 
-        /* --- NEW: Top Utility Bar for Logout Button --- */
+        /* --- NEW: Top Utility Bar for Logout Button (Consistent alignment) --- */
         .top-utility-bar {
             background-color: var(--main-bg-dark); /* Matches body background */
-            padding: 10px 20px;
+            padding: 10px 20px; /* Consistent padding from crew_list.html */
             display: flex;
             justify-content: flex-end; /* Aligns content to the right */
-            align-items: center;
+            align-items: center; /* Ensures vertical alignment */
             font-size: 0.9em;
             color: var(--text-light);
             flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
             border-bottom: 1px solid var(--border-color); /* Subtle separator */
+            line-height: 1.2; /* Explicit line-height for better vertical alignment */
+        }
+
+        .top-utility-bar span,
+        .top-utility-bar .action-link-button {
+            vertical-align: middle; /* Ensure all inline-block elements align to middle */
         }
 
         .top-utility-bar .action-link-button {
-            padding: 5px 10px; /* Smaller padding for button in this bar */
+            padding: 5px 10px; /* Consistent padding from crew_list.html */
             font-size: 0.8em; /* Smaller font size for button */
             margin-left: 15px; /* Space between text and button */
         }
@@ -58,7 +64,7 @@
             padding: 10px 20px; /* Consistent padding from base_login_dashboard.html */
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            position: relative;
+            position: relative; /* Keep relative for general context */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -69,7 +75,7 @@
             height: 80px;
             width: auto;
             max-width: 100%;
-            margin-bottom: 10px; /* Consistent margin from login/dashboard */
+            margin-bottom: 10px; /* Adjusted: Changed from 15px to 10px to match login page */
             display: block;
             margin-left: auto;
             margin-right: auto;
@@ -82,10 +88,10 @@
         }
         .header-branding h1 {
             white-space: nowrap; /* Ensures text stays on a single line */
-            font-size: 2.2em; /* Consistent large font size */
-            color: var(--text-white);
+            font-size: 2.2em; /* Increased font size for the company name */
+            color: var(--text-white); /* Force white color */
             margin: 0;
-            line-height: 1;
+            line-height: 1; /* Ensure tight spacing for h1 elements */
             text-overflow: ellipsis;
             overflow: hidden;
         }
@@ -110,7 +116,7 @@
             }
 
             .header-container { padding: 10px; }
-            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-logo { height: 60px; margin-bottom: 10px; }
             .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
             .header-subtitle {
                 font-size: 1em;
@@ -253,7 +259,69 @@
         .container p .action-link-button {
             margin: 5px; /* Add some margin around buttons for spacing */
         }
+        /* Style for delete buttons in table cells */
+        .delete-button {
+            background-color: var(--messages-error); /* Red for delete */
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: var(--text-white);
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+        }
+        .delete-button:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
+
+        /* --- RESPONSIVE ADJUSTMENTS --- */
+        @media (max-width: 768px) {
+            .top-utility-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+            .header-container { padding: 10px; }
+            .header-logo {
+                height: 60px; /* Smaller logo on mobile */
+                margin-bottom: 10px;
+            }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+            .main-content {
+                padding: 15px;
+            }
+            .container {
+                padding: 15px;
+            }
+            table, th, td {
+                font-size: 0.9em; /* Smaller text for tables on mobile */
+                padding: 8px 10px;
+            }
+            .container p .action-link-button {
+                width: calc(100% - 20px); /* Adjust for padding/gap */
+                text-align: center;
+                margin: 5px auto; /* Center buttons */
+            }
+        }
     </style>
+    <script>
+        function confirmDelete(url) {
+            if (confirm("Are you sure you want to delete this record? This action cannot be undone.")) {
+                window.location.href = url;
+            }
+        }
+    </script>
 </head>
 <body>
     {# Top Utility Bar #}
@@ -306,6 +374,7 @@
                             <th>Last Signed Off Date</th>
                             <th>Last Vessel</th>
                             <th>Details</th>
+                            <th>Delete</th> {# New Delete Column #}
                         </tr>
                     </thead>
                     <tbody>
@@ -323,6 +392,13 @@
                             <td>{{ crew.last_sign_off_date|date:"M j, Y"|default:"N/A" }}</td>
                             <td>{{ crew.current_vessel.name|default:"N/A" }}</td>
                             <td><a href="{% url 'crew_profile_detail' pk=crew.id %}">View</a></td>
+                            <td>
+                                {% if request.user.is_staff %}
+                                <button class="delete-button" onclick="confirmDelete('{% url 'crew_delete' pk=crew.id %}')">Delete</button>
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
