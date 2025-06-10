@@ -33,13 +33,13 @@
             flex-direction: column;
         }
 
-        /* --- NEW: Top Utility Bar for Logout Button (Consistent alignment) --- */
+        /* --- NEW: Top Utility Bar for user info/logout button (Consistent alignment) --- */
         .top-utility-bar {
             background-color: var(--main-bg-dark); /* Matches body background */
             padding: 10px 20px; /* Consistent padding from crew_list.html */
             display: flex;
             justify-content: flex-end; /* Aligns content to the right */
-            align-items: center; /* Ensures vertical alignment */
+            align-items: center;
             font-size: 0.9em;
             color: var(--text-light);
             flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
@@ -116,7 +116,10 @@
             }
 
             .header-container { padding: 10px; }
-            .header-logo { height: 60px; margin-bottom: 10px; }
+            .header-logo {
+                height: 60px; /* Smaller logo on mobile */
+                margin-bottom: 10px;
+            }
             .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
             .header-subtitle {
                 font-size: 1em;
@@ -316,10 +319,86 @@
         }
     </style>
     <script>
-        function confirmDelete(url) {
-            if (confirm("Are you sure you want to delete this record? This action cannot be undone.")) {
+        // Store the base URL pattern in a JavaScript variable
+        // Django will render this into the HTML as a string
+        const CREW_DELETE_BASE_URL = "{% url 'crew_delete' pk=0 %}";
+
+        function confirmDelete(id) {
+            // Construct the final URL by replacing the placeholder '0' with the actual ID
+            const url = CREW_DELETE_BASE_URL.replace('0', id);
+
+            // Using a custom message box instead of alert/confirm as per instructions
+            showCustomConfirm("Are you sure you want to delete this record? This action cannot be undone.", () => {
                 window.location.href = url;
+            });
+        }
+
+        // --- Custom Message Box Implementation (replaces alert/confirm) ---
+        function showCustomConfirm(message, onConfirm) {
+            const existingModal = document.getElementById('customConfirmModal');
+            if (existingModal) {
+                existingModal.remove(); // Remove any previous modal to prevent duplicates
             }
+
+            const modalHtml = `
+                <div id="customConfirmModal" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                ">
+                    <div style="
+                        background: var(--card-bg);
+                        padding: 25px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+                        text-align: center;
+                        color: var(--text-light);
+                        max-width: 400px;
+                        width: 90%;
+                        border: 1px solid var(--border-color);
+                    ">
+                        <p style="margin-bottom: 20px; font-size: 1.1em;">${message}</p>
+                        <button id="confirmYes" style="
+                            background-color: var(--messages-error);
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin-right: 15px;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">Yes</button>
+                        <button id="confirmNo" style="
+                            background-color: var(--button-bg);
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">No</button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            document.getElementById('confirmYes').onclick = () => {
+                onConfirm();
+                document.getElementById('customConfirmModal').remove();
+            };
+
+            document.getElementById('confirmNo').onclick = () => {
+                document.getElementById('customConfirmModal').remove();
+            };
         }
     </script>
 </head>
@@ -362,6 +441,9 @@
                 </p>
             {% endif %}
 
+            {% comment %} The hidden input is removed as the URL is now directly in JS variable {% endcomment %}
+            {# <input type="hidden" id="crewDeleteUrlPattern" value="{% url 'crew_delete' pk=0 %}"> #}
+
             {% if crew_members %}
                 <table>
                     <thead>
@@ -394,7 +476,7 @@
                             <td><a href="{% url 'crew_profile_detail' pk=crew.id %}">View</a></td>
                             <td>
                                 {% if request.user.is_staff %}
-                                <button class="delete-button" onclick="confirmDelete('{% url 'crew_delete' pk=crew.id %}')">Delete</button>
+                                <button class="delete-button" onclick="confirmDelete({{ crew.id }})">Delete</button> {# Changed: Pass crew.id directly #}
                                 {% else %}
                                 N/A
                                 {% endif %}
@@ -406,7 +488,7 @@
             {% else %}
                 <p class="no-crew">No crew members found.</p>
             {% endif %}
-        </div>
+           </div>
     </div>
 
     {# Footer #}
