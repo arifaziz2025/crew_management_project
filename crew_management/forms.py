@@ -1,13 +1,9 @@
 from django import forms
 from .models import CrewMember, Principal, Vessel, Document, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal
 
-
 class CrewMemberProfileForm(forms.ModelForm):
     class Meta:
         model = CrewMember
-        # Specify the fields you want to be editable via this form
-        # For a crew member, they might edit personal info, contact, and working gear.
-        # Financials, employment details, user link, etc., might be admin-only.
         fields = [
             'profile_picture',
             'first_name',
@@ -26,6 +22,17 @@ class CrewMemberProfileForm(forms.ModelForm):
             'skype_id',
             'domestic_airport',
             'nearest_international_airport',
+            'current_rank', # Ensure this is editable if needed for initial creation
+            'joined_in_company', # <--- ADDED THIS FIELD
+            'joined_in_rank',
+            'principal', # Ensure this is editable if needed for initial creation
+            'crew_status',
+            'performance_rating',
+            'relieving_plan_date',
+            'last_sign_off_date',
+            'current_vessel', # Ensure this is editable if needed for initial creation
+            'ssb_no',
+            'client_name_for_appraisal',
             'account_title',
             'account_no',
             'bank_name',
@@ -43,13 +50,16 @@ class CrewMemberProfileForm(forms.ModelForm):
             'inseam_cm',
             'working_gear_remarks',
         ]
-
-        # ... (existing imports and CrewMemberProfileForm) ...
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'joined_in_company': forms.DateInput(attrs={'type': 'date'}),
+            'relieving_plan_date': forms.DateInput(attrs={'type': 'date'}),
+            'last_sign_off_date': forms.DateInput(attrs={'type': 'date'}),
+        }
 
 class PrincipalForm(forms.ModelForm):
     class Meta:
         model = Principal
-        # Specify all fields for Principal as they are generally all editable by staff
         fields = [
             'name',
             'contact_person',
@@ -57,17 +67,10 @@ class PrincipalForm(forms.ModelForm):
             'phone',
             'address'
         ]
-        # Optional: You can specify widgets for better UI control, e.g., DateInput
-        widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
-        }
-
-# ... (existing imports, CrewMemberProfileForm, and PrincipalForm) ...
 
 class VesselForm(forms.ModelForm):
     class Meta:
         model = Vessel
-        # Specify all fields for Vessel as they are generally all editable by staff
         fields = [
             'name',
             'imo_number',
@@ -76,13 +79,9 @@ class VesselForm(forms.ModelForm):
             'associated_principal'
         ]
 
-        # ... (existing imports, CrewMemberProfileForm, PrincipalForm, and VesselForm) ...
-
 class DocumentForm(forms.ModelForm):
     class Meta:
         model = Document
-        # Exclude 'crew_member' because it will be set programmatically in the view
-        # Exclude auto-generated fields like 'created_at', 'updated_at'
         fields = [
             'document_name',
             'document_type',
@@ -92,19 +91,15 @@ class DocumentForm(forms.ModelForm):
             'issue_date',
             'expiry_date',
             'document_file'
-
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs={'type': 'date'}),
             'expiry_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
-# ... (existing imports, CrewMemberProfileForm, PrincipalForm, VesselForm, and DocumentForm) ...
-
 class ExperienceHistoryForm(forms.ModelForm):
     class Meta:
         model = ExperienceHistory
-        # Exclude 'crew_member' as it will be set programmatically
         fields = [
             'company_principal_name',
             'vessel_name',
@@ -115,27 +110,22 @@ class ExperienceHistoryForm(forms.ModelForm):
             'sign_on_date',
             'sign_off_date',
             'port_of_sign_off'
-
         ]
         widgets = {
             'sign_on_date': forms.DateInput(attrs={'type': 'date'}),
             'sign_off_date': forms.DateInput(attrs={'type': 'date'}),
-            
         }
-
-        # ... (existing imports, all other forms) ...
 
 class NextOfKinForm(forms.ModelForm):
     class Meta:
         model = NextOfKin
-        # Exclude 'crew_member' as it will be set programmatically
         fields = [
             'full_name',
             'father_name',
             'date_of_birth',
             'relation_with_seafarer',
             'cnic_no',
-            'cnic_copy', # Include the file field
+            'cnic_copy',
             'place_of_birth',
             'country_of_birth',
             'nationality',
@@ -147,26 +137,21 @@ class NextOfKinForm(forms.ModelForm):
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
         }
 
-        # ... (existing imports, all other forms) ...
-
 class CommunicationLogForm(forms.ModelForm):
     class Meta:
         model = CommunicationLog
-        # Exclude 'crew_member' and 'date' as they will be set programmatically
         fields = [
-            'user_name',        # For who logged the communication
+            'user_name',
             'contact_person_name',
             'purpose_of_call',
             'remarks'
         ]
-        # No specific widgets needed here as date is excluded and other fields are text
-
-        # ... (existing imports, all other forms) ...
+        # Assuming 'date' is auto_now_add/default=timezone.now in model, so not in form.
+        # If 'date' was in fields, it would need a DateInput widget.
 
 class ProfessionalReferenceForm(forms.ModelForm):
     class Meta:
         model = ProfessionalReference
-        # Exclude 'crew_member' and 'date' as they will be set programmatically
         fields = [
             'company_name',
             'contact_person',
@@ -176,20 +161,14 @@ class ProfessionalReferenceForm(forms.ModelForm):
             'mobile_no',
             'fax_no',
             'remarks',
+            # 'date' is likely auto_now_add/default=timezone.now, not in form for manual entry.
         ]
-        # No specific widgets needed, date is excluded
-
-        # ... (existing imports, all other forms) ...
-
-# ... (existing imports, all other forms) ...
 
 class AppraisalForm(forms.ModelForm):
     class Meta:
         model = Appraisal
-        # Exclude 'crew_member', 'seafarer_name', 'ssb_no', 'client_name'
-        # as these are either set programmatically or are properties/auto-appearing
         fields = [
-            'vessel', # Include vessel field for selection
+            'vessel',
             'evaluation_date',
             'date_sign_on',
             'joining_port',

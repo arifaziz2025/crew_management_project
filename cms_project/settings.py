@@ -11,10 +11,20 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-import os # Ensure os is imported at the top
+import os
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Determine BASE_DIR dynamically for PyInstaller
+if getattr(sys, 'frozen', False): # Check if running as a PyInstaller executable
+    # If frozen, BASE_DIR is the directory containing the executable's extracted files.
+    # sys._MEIPASS is PyInstaller's temp folder for bundled files
+    BASE_DIR = Path(sys._MEIPASS) if hasattr(sys, '_MEIPASS') else Path(os.path.dirname(sys.executable))
+    print(f"Running as PyInstaller bundle. BASE_DIR set to: {BASE_DIR}")
+else:
+    # Otherwise, use the standard Django BASE_DIR
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    print(f"Running in development/standard mode. BASE_DIR set to: {BASE_DIR}")
 
 
 # Quick-start development settings - unsuitable for production
@@ -24,18 +34,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-%qtmijf8v7__$w*0op7f_#ft182oi)szp6-nmy+*u33cgvg=l=')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# IMPORTANT: Set DEBUG to False in production
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 
 
-# IMPORTANT: Add your Render.com hostname to ALLOWED_HOSTS
-ALLOWED_HOSTS = ['crew-management-project.onrender.com', '127.0.0.1', 'localhost']
-# Add any custom domains here if you use them on Render:
-# ALLOWED_HOSTS = ['.yourcustomdomain.com', 'crew-management-project.onrender.com', '127.0.0.1', 'localhost']
+# IMPORTANT: ALLOWED_HOSTS for Render.com and local/PyInstaller
+if getattr(sys, 'frozen', False): # For PyInstaller executable
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+elif os.environ.get('RENDER', 'False').lower() == 'true': # For Render.com deployment
+    ALLOWED_HOSTS = [os.environ.get('RENDER_EXTERNAL_HOSTNAME')] # Render sets this env var
+else: # For local development
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -45,12 +56,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'crew_management',
     'users',
-    # Removed 'django_render_auth' as it is not a valid package
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # Add WhiteNoise middleware immediately after SecurityMiddleware
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -58,23 +67,28 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # Removed 'django_render_auth.middleware.CurrentUserMiddleware'
 ]
 
 ROOT_URLCONF = 'cms_project.urls'
 
+# --- TEMPLATES Configuration: Explicitly define DIRS for PyInstaller ---
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [], # Your template directories can be added here if not using APP_DIRS
-        'APP_DIRS': True, # This tells Django to look for 'templates' folder inside each app
+        'DIRS': [
+            # When frozen, templates are copied relative to BASE_DIR (sys._MEIPASS or executable dir)
+            # So, we point directly to where PyInstaller puts the 'templates' folder of your app.
+            BASE_DIR / 'crew_management' / 'templates', # <--- NEW/MODIFIED LINE
+            BASE_DIR / 'users' / 'templates', # <--- NEW/MODIFIED LINE (if users app has templates)
+        ],
+        'APP_DIRS': True, # Keep APP_DIRS True for standard Django discovery, but DIRS takes precedence.
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.debug', # Added for debug
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.media', # Added for media files
+                'django.template.context_processors.media',
             ],
         },
     },
@@ -84,20 +98,24 @@ WSGI_APPLICATION = 'cms_project.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-# IMPORTANT: Use PostgreSQL for Render production, SQLite for local dev
 import dj_database_url
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',
-        conn_max_age=600
-    )
-}
+if getattr(sys, 'frozen', False): # For PyInstaller executable, use SQLite always
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3', # SQLite DB path relative to executable
+        }
+    }
+else: # For Render or local dev
+    DATABASES = {
+        'default': dj_database_url.config(
+            default='sqlite:///db.sqlite3', # Local default
+            conn_max_age=600
+        )
+    }
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -115,8 +133,6 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -127,46 +143,33 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+STATIC_URL = '/static/' 
+if getattr(sys, 'frozen', False):
+    STATIC_ROOT = BASE_DIR / 'static_assets' # PyInstaller bundles static files here
+else:
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') # This collects all static files for deployment
-
-# Add this if it's not already there, for finding static files within apps
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'crew_management', 'static'), # Looks for static files in your app's static folder
+    BASE_DIR / 'crew_management' / 'static', # For development: looks inside crew_management/static
 ]
 
-# WhiteNoise configuration for compressed and cached static files
-# This should be after STATIC_ROOT and STATICFILES_DIRS
+# WhiteNoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Media files (for uploaded user content like profile pictures, documents)
-# import os # This line was already there in your provided settings.py snippet
+# Media files (for uploaded user content)
+MEDIA_URL = '/media/'
+if getattr(sys, 'frozen', False):
+    # When frozen, media files should be writable, so they are relative to executable's run location
+    MEDIA_ROOT = Path(os.path.join(os.path.dirname(sys.executable), 'media_data'))
+else:
+    MEDIA_ROOT = BASE_DIR / 'media'
+
 
 # Authentication settings
-LOGIN_REDIRECT_URL = 'dashboard' # Name of the URL pattern to redirect to after successful login
-LOGOUT_REDIRECT_URL = 'login'    # Name of the URL pattern to redirect to after logout (we'll define this later)
-LOGIN_URL = 'login'              # Name of the URL pattern for the login page
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# Security settings for production (if not already set)
-# CSRF_COOKIE_SECURE = True
-# SESSION_COOKIE_SECURE = True
-# SECURE_SSL_REDIRECT = True
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-# SECURE_HSTS_SECONDS = 31536000 # 1 year
-# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# SECURE_HSTS_PRELOAD = True
-
-# Render.com Environment Variable for Django Debug
-# If using Render environment variables, ensure DJANGO_DEBUG is set to 'False' on Render
-# and 'True' locally (or removed locally to default to True).
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = 'login'

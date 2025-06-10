@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Documents for {{ crew.first_name }} {{ crew.last_name }}</title>
     <style>
-        /* Base Colors (from base_login_dashboard.html) */
+        /* Base Colors */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -33,10 +33,10 @@
             flex-direction: column;
         }
 
-        /* --- NEW: Top Utility Bar for Logout Button --- */
+        /* --- NEW: Top Utility Bar for Logout Button (Consistent alignment) --- */
         .top-utility-bar {
             background-color: var(--main-bg-dark); /* Matches body background */
-            padding: 2px 20px; /* MODIFIED: Further reduced top/bottom padding for a more compact look */
+            padding: 10px 20px; /* Consistent padding from crew_list.html */
             display: flex;
             justify-content: flex-end; /* Aligns content to the right */
             align-items: center; /* Ensures vertical alignment */
@@ -44,10 +44,16 @@
             color: var(--text-light);
             flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
             border-bottom: 1px solid var(--border-color); /* Subtle separator */
+            line-height: 1.2; /* Explicit line-height for better vertical alignment */
+        }
+
+        .top-utility-bar span,
+        .top-utility-bar .action-link-button {
+            vertical-align: middle; /* Ensure all inline-block elements align to middle */
         }
 
         .top-utility-bar .action-link-button {
-            padding: 2px 10px; /* MODIFIED: Adjusted padding to be more symmetrical with the text height */
+            padding: 5px 10px; /* Consistent padding from crew_list.html */
             font-size: 0.8em; /* Smaller font size for button */
             margin-left: 15px; /* Space between text and button */
         }
@@ -110,7 +116,10 @@
             }
 
             .header-container { padding: 10px; }
-            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-logo {
+                height: 60px; /* Smaller logo on mobile */
+                margin-bottom: 10px;
+            }
             .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
             .header-subtitle {
                 font-size: 1em;
@@ -194,43 +203,53 @@
             margin: 20px auto;
         }
         .profile-container, .edit-container, .form-container { max-width: 800px; }
-        .container { max-width: 900px; }
+        .container { max-width: 900px; } /* Specific for list pages */
 
         h1, h2, h3 {
             color: var(--text-white);
         }
+        /* MODIFIED: Removed border-bottom for h1 within these containers for consistency with other detail/form pages */
         .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: none; /* REMOVED LINE */
             padding-bottom: 15px;
         }
 
-        /* Styles specific to Document List page */
+        /* Styles specific to Document List page - Updated to match Crew List */
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            background-color: var(--card-bg); /* Use variable for consistency */
-            border: 1px solid var(--border-color); /* Use variable for consistency */
-            border-radius: 8px; /* Consistent with other containers */
+            background-color: #333355; /* Slightly lighter card background for table */
+            border: 1px solid #444477;
+            border-radius: 6px;
             overflow: hidden; /* Ensures rounded corners apply to table content */
+            table-layout: fixed; /* Ensures column widths are respected */
         }
         th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color); /* Use variable for consistency */
+            border-bottom: 1px solid #444477;
             color: var(--text-light);
+            word-wrap: break-word; /* Allows long words to break and wrap */
+            overflow: hidden; /* Hide content that overflows cell */
+            white-space: normal; /* Allow text to wrap by default in cells */
         }
         th {
-            background-color: var(--button-bg); /* Use variable for consistency */
+            background-color: #4a4a7a; /* Header background matching Crew Roster */
             color: var(--text-white);
-            font-weight: bold;
+            font-weight: bold; /* Reverted to bold as in crew_list */
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            white-space: nowrap; /* Force headers to one line */
+            font-size: 0.9em; /* Consistent font size for headers */
+        }
+        tr:nth-child(even) {
+            background-color: #2a2a4a; /* Alternate row background matching Crew Roster */
         }
         tr:hover {
-            background-color: var(--button-hover-bg); /* Use variable for consistency */
+            background-color: #3a3a6a; /* Hover effect matching Crew Roster */
         }
         td a {
             color: var(--link-color);
@@ -240,11 +259,10 @@
             text-decoration: underline;
         }
         .action-link-button {
-            /* These styles are already in common section, adjusting only specific overrides */
-            padding: 8px 15px; /* Smaller padding for these specific buttons */
+            padding: 8px 15px;
             margin-bottom: 20px;
             margin-right: 10px;
-            background-color: var(--button-bg); /* Ensure button color is standard */
+            background-color: var(--button-bg);
             color: var(--text-white);
         }
         .action-link-button:hover {
@@ -252,7 +270,185 @@
         }
         .expired-doc { color: var(--messages-error); font-weight: bold; }
         .expiring-soon-doc { color: var(--messages-warning); font-weight: bold; }
+
+        /* Column widths and alignment to match Crew Roster */
+        table colgroup {
+            display: table-column-group;
+        }
+        table col.col-document-name { width: 18%; }
+        table col.col-type { width: 10%; }
+        table col.col-number { width: 12%; }
+        table col.col-issued { width: 12%; }
+        table col.col-expires { width: 12%; }
+        table col.col-status { width: 10%; }
+        table col.col-details { width: 8%; } /* For View link */
+        table col.col-delete { width: 8%; } /* For Delete button */
+
+        /* Apply widths directly to th for stronger control */
+        table th:nth-child(1) { width: 18%; } /* Document Name */
+        table th:nth-child(2) { width: 10%; } /* Type */
+        table th:nth-child(3) { width: 12%; } /* Number */
+        table th:nth-child(4) { width: 12%; } /* Issued */
+        table th:nth-child(5) { width: 12%; } /* Expires */
+        table th:nth-child(6) { width: 10%; } /* Status */
+        table th:nth-child(7) { width: 8%; }  /* Details (View) */
+        table th:nth-child(8) { width: 8%; }  /* Delete */
+
+        /* Centralize dates for consistency with Crew Roster (Last Signed Off Date) */
+        table td:nth-child(4), /* Issued Date */
+        table td:nth-child(5) { /* Expires Date */
+            text-align: center;
+            white-space: nowrap; /* Prevent dates from wrapping */
+        }
+
+        /* Style for delete buttons in table cells */
+        .delete-button {
+            background-color: var(--messages-error); /* Red for delete */
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: var(--text-white);
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+        }
+        .delete-button:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
+
+        /* --- RESPONSIVE ADJUSTMENTS --- */
+        @media (max-width: 768px) {
+            .top-utility-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+            .header-container { padding: 10px; }
+            .header-logo {
+                height: 60px; /* Smaller logo on mobile */
+                margin-bottom: 10px;
+            }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+            .main-content {
+                padding: 15px;
+            }
+            .container {
+                padding: 15px;
+            }
+            table {
+                table-layout: auto; /* Allow auto layout on small screens for better content fit */
+            }
+            table colgroup { display: none; } /* Hide colgroup on small screens */
+            table th, table td {
+                font-size: 0.7em; /* Further reduce font size for tables on small screens */
+                padding: 4px 6px;
+                white-space: normal; /* Allow wrapping for all cells on small screens */
+                word-wrap: break-word; /* Allow long words to break */
+                min-width: unset; /* Remove min-width to allow flexibility */
+                text-align: left; /* Default text alignment */
+            }
+            /* Specific mobile adjustments if needed for buttons/links in cells */
+            table td:nth-child(7), table td:nth-child(8) { /* Details and Delete columns */
+                text-align: center; /* Center actions on mobile */
+            }
+            .delete-button {
+                margin-left: 0; /* No specific left margin when stacked vertically */
+            }
+        }
     </style>
+    <script>
+        // Store the base URL pattern in a JavaScript variable
+        const DOCUMENT_DELETE_BASE_URL = "{% url 'document_delete' pk=0 %}"; // Corrected URL pattern name
+
+        function confirmDelete(id) {
+            // Construct the final URL by replacing the placeholder '0' with the actual ID
+            const url = DOCUMENT_DELETE_BASE_URL.replace('0', id);
+
+            // Using a custom message box instead of alert/confirm
+            showCustomConfirm("Are you sure you want to delete this record? This action cannot be undone.", function() {
+                window.location.href = url;
+            });
+        }
+
+        // Custom confirm dialog function (replaces default browser confirm)
+        function showCustomConfirm(message, onConfirm) {
+            const existingModal = document.getElementById('customConfirmModal');
+            if (existingModal) {
+                existingModal.remove(); // Remove any previous modal to prevent duplicates
+            }
+
+            const modalHtml = `
+                <div id="customConfirmModal" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                ">
+                    <div style="
+                        background: var(--card-bg);
+                        padding: 25px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+                        text-align: center;
+                        color: var(--text-light);
+                        max-width: 400px;
+                        width: 90%;
+                        border: 1px solid var(--border-color);
+                    ">
+                        <p style="margin-bottom: 20px; font-size: 1.1em;">${message}</p>
+                        <button id="confirmYes" style="
+                            background-color: var(--messages-error); /* Corrected variable usage */
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin-right: 15px;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">Yes</button>
+                        <button id="confirmNo" style="
+                            background-color: var(--button-bg); /* Corrected variable usage */
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">No</button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            document.getElementById('confirmYes').onclick = () => {
+                onConfirm();
+                document.getElementById('customConfirmModal').remove();
+            };
+
+            document.getElementById('confirmNo').onclick = () => {
+                document.getElementById('customConfirmModal').remove();
+            };
+        }
+    </script>
 </head>
 <body>
     {# Top Utility Bar #}
@@ -283,7 +479,7 @@
 
     {# Main Content Area #}
     <div class="main-content">
-        <div class="container"> {# Original container from document_list_for_crew.html #}
+        <div class="container">
             <h1>Documents for {{ crew.first_name }} {{ crew.last_name }}</h1>
             {% if request.user.is_staff or request.user == crew.user %}
                 <p>
@@ -291,8 +487,20 @@
                 </p>
             {% endif %}
 
+            {# JavaScript variable to store the base URL pattern for document delete #}
+            {# MOVED: Script block moved to head to prevent re-declaration errors #}
             {% if documents %}
                 <table>
+                    <colgroup>
+                        <col class="col-document-name">
+                        <col class="col-type">
+                        <col class="col-number">
+                        <col class="col-issued">
+                        <col class="col-expires">
+                        <col class="col-status">
+                        <col class="col-details"> {# Explicitly for Details #}
+                        <col class="col-delete"> {# Explicitly for Delete #}
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Document Name</th>
@@ -301,7 +509,8 @@
                             <th>Issued</th>
                             <th>Expires</th>
                             <th>Status</th>
-                            <th>Details</th>
+                            <th>Details</th> {# Now only for View link #}
+                            <th>Delete</th> {# Now for Delete button #}
                         </tr>
                     </thead>
                     <tbody>
@@ -333,7 +542,14 @@
                                     No Expiry
                                 {% endif %}
                             </td>
-                            <td><a href="{% url 'document_detail' pk=doc.pk %}">View</a></td>
+                            <td>
+                                <a href="{% url 'document_detail' pk=doc.pk %}">View</a>
+                            </td>
+                            <td>
+                                {% if request.user.is_staff or request.user == crew.user %}
+                                <button class="delete-button" onclick="confirmDelete({{ doc.pk }})">Delete</button>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

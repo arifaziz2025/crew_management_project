@@ -8,14 +8,14 @@
     <style>
         /* Base Colors */
         :root {
-            --main-bg-dark: #1a1a2e;        /* Main page background */
-            --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
-            --border-color: #3a3a6a;        /* Borders and separators */
-            --text-light: #e0e0e0;          /* General light text */
-            --text-white: #ffffff;          /* Pure white for headings/important text */
-            --link-color: #8aff8a;          /* Green for primary links */
-            --button-bg: #4a4a7a;           /* Standard button background */
-            --button-hover-bg: #5a5a9a;     /* Standard button hover */
+            --main-bg-dark: #1a1a2e;
+            --card-bg: #2a2a4a;
+            --border-color: #3a3a6a;
+            --text-light: #e0e0e0;
+            --text-white: #ffffff;
+            --link-color: #8aff8a;
+            --button-bg: #4a4a7a;
+            --button-hover-bg: #5a5a9a;
             --messages-success: #4CAF50;
             --messages-error: #f44336;
             --messages-info: #2196F3;
@@ -35,33 +35,33 @@
 
         /* --- NEW: Top Utility Bar for Logout Button (Consistent alignment) --- */
         .top-utility-bar {
-            background-color: var(--main-bg-dark); /* Matches body background */
-            padding: 10px 20px; /* Consistent padding from crew_list.html */
+            background-color: var(--main-bg-dark);
+            padding: 10px 20px;
             display: flex;
-            justify-content: flex-end; /* Aligns content to the right */
-            align-items: center; /* Ensures vertical alignment */
+            justify-content: flex-end;
+            align-items: center;
             font-size: 0.9em;
             color: var(--text-light);
-            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
-            border-bottom: 1px solid var(--border-color); /* Subtle separator */
-            line-height: 1.2; /* Explicit line-height for better vertical alignment */
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
+            line-height: 1.2;
         }
 
         .top-utility-bar span,
         .top-utility-bar .action-link-button {
-            vertical-align: middle; /* Ensure all inline-block elements align to middle */
+            vertical-align: middle;
         }
 
         .top-utility-bar .action-link-button {
-            padding: 5px 10px; /* Consistent padding from crew_list.html */
-            font-size: 0.8em; /* Smaller font size for button */
-            margin-left: 15px; /* Space between text and button */
+            padding: 5px 10px;
+            font-size: 0.8em;
+            margin-left: 15px;
         }
 
         /* --- HEADER STYLING --- */
         .header-container {
             background-color: var(--card-bg);
-            padding: 10px 20px; /* Consistent padding */
+            padding: 10px 20px;
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             position: relative;
@@ -75,7 +75,7 @@
             height: 80px;
             width: auto;
             max-width: 100%;
-            margin-bottom: 10px; /* Consistent margin from login/dashboard */
+            margin-bottom: 10px;
             display: block;
             margin-left: auto;
             margin-right: auto;
@@ -87,8 +87,8 @@
             width: 100%;
         }
         .header-branding h1 {
-            white-space: nowrap; /* Ensures text stays on a single line */
-            font-size: 2.2em; /* Consistent large font size */
+            white-space: nowrap;
+            font-size: 2.2em;
             color: var(--text-white);
             margin: 0;
             line-height: 1;
@@ -97,13 +97,13 @@
         }
 
         .header-subtitle {
-            font-size: 1.2em; /* Consistent subtitle font size */
+            font-size: 1.2em;
             color: var(--link-color) !important;
-            margin-top: 5px; /* Consistent spacing */
+            margin-top: 5px;
             line-height: 1;
         }
 
-        @media (max-width: 768px) { /* Adjust for mobile */
+        @media (max-width: 768px) {
             .top-utility-bar {
                 flex-direction: column;
                 align-items: center;
@@ -116,7 +116,7 @@
             }
 
             .header-container { padding: 10px; }
-            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-logo { height: 60px; margin-bottom: 10px; }
             .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
             .header-subtitle {
                 font-size: 1em;
@@ -190,8 +190,9 @@
         .messages .warning { background-color: var(--messages-warning); }
         .no-data { text-align: center; padding: 20px; color: var(--text-light); }
 
-        /* --- COMMON CONTAINER STYLES (for pages like lists, forms, profiles) --- */
-        .container, .profile-container, .form-container, .edit-container {
+        /* --- COMMON CONTAINER STYLES (for forms) --- */
+        .edit-container, .form-container {
+            max-width: 800px;
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             padding: 30px;
@@ -199,26 +200,14 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             margin: 20px auto;
         }
-        .profile-container, .edit-container, .form-container { max-width: 800px; }
-        .container { max-width: 900px; }
-
-        h1, h2, h3 {
+        h1 { /* This h1 is specifically for the form title within the container */
             color: var(--text-white);
-        }
-        /* MODIFIED: Removed border-bottom for h1 within these containers */
-        .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: none; /* REMOVED LINE */
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 15px;
         }
-
-        /* Styles re-used from edit template, now with original hardcoded values to preserve exact look */
-        .edit-container {
-            max-width: 900px; /* Original width for this specific container */
-        }
-        /* h1 style from .container h1 is inherited and applies here */
-        form p {
+        form p { /* Styles for Django form fields wrapped in <p> */
             margin-bottom: 15px;
             color: var(--text-light);
         }
@@ -231,7 +220,7 @@
         form input[type="text"],
         form input[type="email"],
         form input[type="tel"],
-        form input[type="date"],
+        form input[type="date"], /* Target this specifically for date input */
         form textarea,
         form select,
         form input[type="number"] {
@@ -239,10 +228,25 @@
             padding: 10px;
             border: 1px solid var(--button-bg);
             border-radius: 4px;
-            background-color: var(--main-bg-dark);
-            color: var(--text-white);
+            background-color: var(--main-bg-dark); /* Default dark background for most inputs */
+            color: var(--text-white); /* Default light text for most inputs */
             box-sizing: border-box;
         }
+        /* --- MODIFIED: Specific styles for date inputs to make calendar icon visible ONLY --- */
+        form input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1); /* Invert colors to make a dark icon light on a dark background */
+            cursor: pointer;
+            /* Make it slightly larger and perhaps shift it to make it more prominent if needed */
+            font-size: 1.2em; /* Increase size of the icon */
+            padding-left: 5px; /* Add some padding if necessary */
+        }
+        /* For Firefox, the styling is more limited, but we can try to ensure background contrast */
+        form input[type="date"] {
+            /* Ensure the input field itself remains dark for consistency with other fields */
+            background-color: var(--main-bg-dark);
+            color: var(--text-white);
+        }
+
         form input[type="file"] {
             padding: 5px;
             border: 1px solid var(--button-bg);
@@ -267,8 +271,8 @@
             margin-bottom: 15px;
         }
         form button[type="submit"] {
-            background-color: var(--link-color);
-            color: var(--main-bg-dark);
+            background-color: var(--link-color); /* Green for submit button */
+            color: var(--main-bg-dark); /* Dark text on green button */
             border: none;
             padding: 12px 25px;
             border-radius: 4px;
@@ -278,17 +282,14 @@
             margin-top: 20px;
         }
         form button[type="submit"]:hover {
-            background-color: var(--link-color);
-            filter: brightness(90%);
+            filter: brightness(90%); /* Subtle darken on hover */
         }
-        a {
-            color: var(--link-color);
-            text-decoration: none;
-            margin-top: 10px;
-            display: inline-block;
+        .back-link-bottom {
+            text-align: center;
+            margin-top: 30px;
         }
-        a:hover {
-            text-decoration: underline;
+        .back-link-bottom a {
+            margin-right: 10px;
         }
     </style>
 </head>
@@ -308,7 +309,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Create New Crew Profile</p> {# Subtitle for Create New Crew Profile #}
+            <p class="header-subtitle">Add New Crew Member</p> {# Subtitle for Add Crew Page #}
         </div>
     </div>
 
@@ -321,7 +322,7 @@
 
     {# Main Content Area #}
     <div class="main-content">
-        <div class="edit-container">
+        <div class="form-container">
             <h1>Add New Crew Member</h1>
 
             <form method="post" enctype="multipart/form-data">
@@ -329,11 +330,12 @@
 
                 {{ form.as_p }}
 
-                <button type="submit">Add Crew Member</button>
+                <button type="submit" class="action-link-button">Add Crew Member</button>
             </form>
 
-            <p>
-                <a href="{% url 'crew_list' %}">Back to Crew Roster</a>
+            <p class="back-link-bottom">
+                <a href="{% url 'crew_list' %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Roster</a>
+                <a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a>
             </p>
         </div>
     </div>
@@ -341,9 +343,8 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
         {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

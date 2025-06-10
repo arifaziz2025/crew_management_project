@@ -1,0 +1,310 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        /* Base Colors (from base_login_dashboard.html) */
+        :root {
+            --main-bg-dark: #1a1a2e;        /* Main page background */
+            --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
+            --border-color: #3a3a6a;        /* Borders and separators */
+            --text-light: #e0e0e0;          /* General light text */
+            --text-white: #ffffff;          /* Pure white for headings/important text */
+            --link-color: #8aff8a;          /* Green for primary links */
+            --button-bg: #4a4a7a;           /* Standard button background */
+            --button-hover-bg: #5a5a9a;     /* Standard button hover */
+            --messages-success: #4CAF50;
+            --messages-error: #f44336;
+            --messages-info: #2196F3;
+            --messages-warning: #ff9800;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--main-bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- NEW: Top Utility Bar for Logout Button --- */
+        .top-utility-bar {
+            background-color: var(--main-bg-dark); /* Matches body background */
+            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-end; /* Aligns content to the right */
+            align-items: center; /* Ensures vertical alignment */
+            font-size: 0.9em;
+            color: var(--text-light);
+            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
+            border-bottom: 1px solid var(--border-color); /* Subtle separator */
+            line-height: 1.2; /* ADDED: Explicit line-height for better vertical alignment */
+        }
+
+        .top-utility-bar span,
+        .top-utility-bar .action-link-button {
+            vertical-align: middle; /* ADDED: Ensure all inline-block elements align to middle */
+        }
+
+        .top-utility-bar .action-link-button {
+            padding: 5px 10px;
+            font-size: 0.8em; /* Smaller font size for button */
+            margin-left: 15px; /* Space between text and button */
+        }
+
+        /* --- HEADER STYLING --- */
+        .header-container {
+            background-color: var(--card-bg);
+            padding: 10px 20px; /* Consistent padding */
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header-logo {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: 10px; /* Consistent margin from login/dashboard */
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .header-branding {
+            text-align: center;
+            margin-bottom: 0;
+            width: 100%;
+        }
+        .header-branding h1 {
+            white-space: nowrap; /* Ensures text stays on a single line */
+            font-size: 2.2em; /* Consistent large font size */
+            color: var(--text-white);
+            margin: 0;
+            line-height: 1;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .header-subtitle {
+            font-size: 1.2em; /* Consistent subtitle font size */
+            color: var(--link-color) !important;
+            margin-top: 5px; /* Consistent spacing */
+            line-height: 1;
+        }
+
+        @media (max-width: 768px) { /* Adjust for mobile */
+            .top-utility-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+
+            .header-container { padding: 10px; }
+            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
+
+        /* --- FOOTER STYLING --- */
+        .footer-container {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .footer-copyright {
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: var(--text-light);
+        }
+        /* --- COMMON BUTTONS & LINKS --- */
+        .action-link-button {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .action-link-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- MESSAGES (Django) --- */
+        .messages {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 10px auto;
+            max-width: 900px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        .messages .success { background-color: var(--messages-success); }
+        .messages .error { background-color: var(--messages-error); }
+        .messages .info { background-color: var(--messages-info); }
+        .messages .warning { background-color: var(--messages-warning); }
+        .no-data { text-align: center; padding: 20px; color: var(--text-light); }
+
+        /* --- COMMON CONTAINER STYLES (for pages like lists, forms, profiles) --- */
+        .container, .profile-container, .form-container, .edit-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            margin: 20px auto;
+        }
+        .profile-container, .edit-container, .form-container { max-width: 800px; }
+        .container { max-width: 900px; }
+
+        h1, h2, h3 {
+            color: var(--text-white);
+        }
+        .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        /* Styles specific to Document Form page */
+        .form-container { max-width: 600px; } /* Override common container to be 600px */
+        h1 { /* This h1 is specifically for the form title within the container */
+            color: var(--text-white);
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+        form p { /* Styles for Django form fields wrapped in <p> */
+            margin-bottom: 15px;
+            color: var(--text-light);
+        }
+        form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        form input[type="text"], form input[type="email"], form input[type="tel"], form input[type="date"], form textarea, form select, form input[type="number"] {
+            width: calc(100% - 22px); padding: 10px; border: 1px solid var(--button-bg); border-radius: 4px;
+            background-color: var(--main-bg-dark); color: var(--text-white); box-sizing: border-box; }
+        form input[type="file"] {
+            padding: 5px; border: 1px solid var(--button-bg); border-radius: 4px;
+            background-color: var(--main-bg-dark); color: var(--text-white); width: 100%; box-sizing: border-box; }
+        form .helptext, form ul.errorlist { font-size: 0.9em; color: var(--text-light); margin-top: 5px; }
+        form ul.errorlist { color: var(--messages-error); list-style-type: none; padding-left: 0; margin-bottom: 10px; }
+        form button[type="submit"] {
+            background-color: var(--link-color); color: var(--main-bg-dark); border: none; padding: 12px 25px; border-radius: 4px;
+            cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; margin-top: 20px; }
+        form button[type="submit"]:hover { background-color: var(--link-color); filter: brightness(90%); }
+        a { color: var(--link-color); text-decoration: none; margin-top: 10px; display: inline-block; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    {# Top Utility Bar #}
+    <div class="top-utility-bar">
+        {% if request.user.is_authenticated %}
+            <span>Hello, {{ request.user.username }}!</span>
+            <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="action-link-button">Login</a>
+        {% endif %}
+    </div>
+
+    {# Header Container #}
+    <div class="header-container">
+        <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+        <div class="header-branding">
+            <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
+            <p class="header-subtitle">Document Form</p> {# Subtitle for Document Form #}
+        </div>
+    </div>
+
+    {# Django messages #}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    {# Main Content Area #}
+    <div class="main-content">
+        <div class="form-container">
+            <h1>{{ title }}</h1>
+
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">{{ button_text }}</button>
+            </form>
+
+            <p>
+                {% if document %} {# If editing an existing document #}
+                    <a href="{% url 'document_detail' pk=document.pk %}">Back to Document Details</a>
+                {% else %} {# If creating a new document #}
+                    <a href="{% url 'document_list_for_crew' crew_pk=crew.pk %}">Back to Documents List</a>
+                {% endif %}
+                <span style="margin: 0 10px;">|</span>
+                <a href="{% url 'crew_profile_detail' pk=crew.pk %}">Back to Crew Profile</a>
+            </p>
+        </div>
+    </div>
+
+    {# Footer #}
+    <div class="footer-container">
+        <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
+        {# Conditional Back to Dashboard link in footer #}
+        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
+            <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>

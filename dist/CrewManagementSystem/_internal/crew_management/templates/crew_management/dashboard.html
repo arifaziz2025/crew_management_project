@@ -1,0 +1,438 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agency Dashboard</title> {# Title is now static for this page #}
+    <style>
+        /* Base Colors (from base_login_dashboard.html) */
+        :root {
+            --main-bg-dark: #1a1a2e;        /* Main page background */
+            --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
+            --border-color: #3a3a6a;        /* Borders and separators */
+            --text-light: #e0e0e0;          /* General light text */
+            --text-white: #ffffff;          /* Pure white for headings/important text */
+            --link-color: #8aff8a;          /* Green for primary links */
+            --button-bg: #4a4a7a;           /* Standard button background */
+            --button-hover-bg: #5a5a9a;     /* Standard button hover */
+            --messages-success: #4CAF50;
+            --messages-error: #f44336;
+            --messages-info: #2196F3;
+            --messages-warning: #ff9800;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--main-bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- NEW: Top Utility Bar for Logout Button --- */
+        .top-utility-bar {
+            background-color: var(--main-bg-dark); /* Matches body background */
+            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-end; /* Aligns content to the right */
+            align-items: center;
+            font-size: 0.9em;
+            color: var(--text-light);
+            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
+            border-bottom: 1px solid var(--border-color); /* Subtle separator */
+        }
+
+        .top-utility-bar .action-link-button {
+            padding: 5px 10px; /* Smaller padding for button in this bar */
+            font-size: 0.8em; /* Smaller font size for button */
+            margin-left: 15px; /* Space between text and button */
+        }
+
+        /* --- HEADER STYLING for Login/Dashboard --- */
+        .header-container {
+            background-color: var(--card-bg);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative; /* Keep relative for general context */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        /* Base logo and branding styles */
+        .header-logo {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: 10px; /* Adjusted: Changed from 15px to 10px to match login page */
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .header-branding {
+            text-align: center;
+            margin-bottom: 0;
+            width: 100%;
+        }
+        .header-branding h1 {
+            white-space: nowrap; /* Ensures text stays on a single line */
+            font-size: 2.2em; /* Increased font size for the company name */
+            color: var(--text-white); /* Force white color */
+            margin: 0;
+            line-height: 1; /* Ensure tight spacing for h1 elements */
+            text-overflow: ellipsis; /* Add ellipsis if it overflows, combined with overflow: hidden */
+            overflow: hidden; /* Hide overflow content */
+        }
+
+        .header-subtitle {
+            font-size: 1.2em;
+            color: var(--link-color) !important; /* Force the subtitle to be green */
+            margin-top: 5px; /* Adjust spacing below the company name lines */
+            line-height: 1;
+        }
+
+        @media (max-width: 768px) { /* Adjust for mobile */
+            .top-utility-bar {
+                flex-direction: column; /* Stack items vertically on mobile */
+                align-items: center;
+                gap: 5px; /* Reduce gap on mobile */
+                padding: 5px 10px; /* Smaller padding on mobile */
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0; /* Remove left margin when stacked */
+                margin-top: 5px; /* Add top margin for stacking */
+            }
+
+            .header-container { padding: 10px; }
+            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
+
+        /* --- FOOTER STYLING --- */
+        .footer-container {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .footer-copyright {
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: var(--text-light);
+        }
+        /* --- COMMON BUTTONS & LINKS --- */
+        .action-link-button {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .action-link-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- MESSAGES (Django) --- */
+        .messages {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 10px auto;
+            max-width: 900px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        .messages .success { background-color: var(--messages-success); }
+        .messages .error { background-color: var(--messages-error); }
+        .messages .info { background-color: var(--messages-info); }
+        .messages .warning { background-color: var(--messages-warning); }
+        .no-data { text-align: center; padding: 20px; color: var(--text-light); }
+
+
+        /* --- DASHBOARD SPECIFIC LAYOUT (Original styles from dashboard.html, merged and prioritized) --- */
+        .dashboard-container {
+            max-width: 1200px; /* Wider container for dashboard */
+            margin: auto;
+            background-color: #2a2a4a; /* Using hardcoded value from original dashboard.html for exact match */
+            border: 1px solid #3a3a6a; /* Using hardcoded value from original dashboard.html for exact match */
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns */
+            gap: 30px; /* Space between grid items */
+        }
+        .dashboard-container h1 {
+            color: #ffffff; /* Using hardcoded value from original dashboard.html for exact match */
+            text-align: center;
+            margin-bottom: 30px;
+            grid-column: 1 / -1; /* Span across both columns */
+        }
+        .card {
+            background-color: #333355; /* Using hardcoded value from original dashboard.html for exact match */
+            border: 1px solid #444477; /* Using hardcoded value from original dashboard.html for exact match */
+            border-radius: 6px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            color: #8aff8a; /* Highlight for card titles */
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #444477; /* Using hardcoded value from original dashboard.html for exact match */
+            padding-bottom: 10px;
+        }
+        .card p {
+            margin: 8px 0;
+            color: #c0c0c0; /* Using hardcoded value from original dashboard.html for exact match */
+        }
+        .card ul {
+            list-style: none;
+            padding: 0;
+        }
+        .card ul li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #444477; /* Using hardcoded value from original dashboard.html for exact match */
+        }
+        .card ul li:last-child {
+            border-bottom: none;
+        }
+        .card ul li a {
+            color: #8aff8a; /* Using hardcoded value from original dashboard.html for exact match */
+            text-decoration: none;
+        }
+        .card ul li a:hover {
+            text-decoration: underline;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center; /* Added for vertical alignment of numbers */
+            padding: 5px 0;
+        }
+        .status-item strong {
+            color: #ffffff; /* Using hardcoded value from original dashboard.html for exact match */
+        }
+        .status-item span {
+            background-color: #555; /* Using hardcoded value from original dashboard.html for exact match */
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.9em;
+        }
+        .alert-item {
+            color: #ffcccc; /* Light red for alerts */
+        }
+        .expiring-soon {
+            color: #ffff99; /* Yellow for expiring soon */
+        }
+        .expired {
+            color: #ff6666; /* Red for expired */
+        }
+        .signoff-soon {
+            color: #99ccff; /* Light blue for sign-offs */
+        }
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #b0b0b0; /* Using hardcoded value from original dashboard.html for exact match */
+        }
+        .dashboard-links {
+            grid-column: 1 / -1; /* Span across both columns */
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #3a3a6a; /* Using hardcoded value from original dashboard.html for exact match */
+            display: flex; /* Use flexbox for button alignment */
+            flex-wrap: wrap; /* Allow buttons to wrap */
+            justify-content: center; /* Center buttons horizontally */
+            gap: 15px; /* Space between buttons */
+        }
+        .dashboard-links a {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4a4a7a; /* Using hardcoded value from original dashboard.html for exact match */
+            color: #fff;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+        .dashboard-links a:hover {
+            background-color: #5a5a9a; /* Using hardcoded value from original dashboard.html for exact match */
+        }
+
+        /* For smaller screens, switch to single column layout */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-links {
+                flex-direction: column; /* Stack buttons vertically on small screens */
+                align-items: center; /* Center stacked buttons */
+            }
+            .dashboard-links a {
+                width: calc(100% - 30px); /* Adjust button width for small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    {# NEW: Top Utility Bar for user info/logout button #}
+    <div class="top-utility-bar">
+        {% if request.user.is_authenticated %}
+            <span>Hello, {{ request.user.username }}!</span>
+            <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+        {% else %}
+            {# Display login button, though typically dashboard is only for logged-in users #}
+            <a href="{% url 'login' %}" class="action-link-button">Login</a>
+        {% endif %}
+    </div>
+
+    <div class="header-container">
+        <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+        <div class="header-branding">
+            <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
+            <p class="header-subtitle">Dashboard Overview</p> {# Subtitle for Dashboard #}
+        </div>
+    </div>
+
+    {# Django messages go here #}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    <div class="main-content">
+        <div class="dashboard-container">
+            <h1>Agency Dashboard</h1>
+
+            <div class="card">
+                <h2>Crew Overview</h2>
+                <p><strong>Total Crew Members:</strong> {{ total_crew }}</p>
+                <h3>Crew by Status:</h3>
+                <ul>
+                    {% for status, count in crew_status_counts.items %}
+                        <li class="status-item">
+                            <strong>{{ status }}:</strong> <span>{{ count }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2>Document Alerts</h2>
+                <h3>Expiring Soon (next 6 months):</h3>
+                {% if expiring_documents %}
+                    <ul>
+                        {% for doc in expiring_documents %}
+                            <li class="expiring-soon">
+                                <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
+                                    {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expires: {{ doc.expiry_date|date:"M j, Y" }})
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="no-data">No documents expiring soon.</p>
+                {% endif %}
+
+                <h3>Recently Expired:</h3>
+                {% if expired_documents %}
+                    <ul>
+                        {% for doc in expired_documents %}
+                            <li class="expired">
+                                <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
+                                    {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expired: {{ doc.expiry_date|date:"M j, Y" }})
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="no-data">No recently expired documents.</p>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h2>Upcoming Crew Changes</h2>
+                <h3>Projected Sign-offs (next 2 months):</h3>
+                {% if upcoming_signoffs %}
+                    <ul>
+                        {% for crew in upcoming_signoffs %}
+                            <li class="signoff-soon">
+                                <a href="{% url 'crew_profile_detail' pk=crew.id %}">
+                                    {{ crew.first_name }} {{ crew.last_name }} (Rank: {{ crew.current_rank }}) - Sign-off: {{ crew.relieving_plan_date|date:"M j, Y" }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="no-data">No upcoming sign-offs.</p>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h2>Financial Snapshot</h2>
+                <p>{{ financial_summary_placeholder }}</p>
+                <p class="no-data">Detailed financial summary will be available here once financial modules are developed.</p>
+            </div>
+
+            <div class="dashboard-links">
+                {% if request.user.is_staff %}
+                    <a href="{% url 'crew_list' %}">View Full Crew Roster</a>
+                    <a href="{% url 'principal_list' %}">Manage Principals</a>
+                    <a href="{% url 'vessel_list' %}">Manage Vessels</a>
+                    <a href="/admin/">Go to Admin Panel</a>
+                    <a href="{% url 'crew_create' %}">+ Add New Crew Member</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Footer #}
+    <div class="footer-container">
+        <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
+        {# Conditional Back to Dashboard link in footer #}
+        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
+            <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>

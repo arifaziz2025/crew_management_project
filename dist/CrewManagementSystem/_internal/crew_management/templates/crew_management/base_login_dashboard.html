@@ -1,0 +1,338 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Crew Management System{% endblock %}</title>
+    <style>
+        /* Base Colors */
+        :root {
+            --main-bg-dark: #1a1a2e;        /* Main page background */
+            --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
+            --border-color: #3a3a6a;        /* Borders and separators */
+            --text-light: #e0e0e0;          /* General light text */
+            --text-white: #ffffff;          /* Pure white for headings/important text */
+            --link-color: #8aff8a;          /* Green for primary links */
+            --button-bg: #4a4a7a;           /* Standard button background */
+            --button-hover-bg: #5a5a9a;     /* Standard button hover */
+            --messages-success: #4CAF50;
+            --messages-error: #f44336;
+            --messages-info: #2196F3;
+            --messages-warning: #ff9800;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--main-bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- HEADER STYLING for Login/Dashboard --- */
+        .header-container {
+            background-color: var(--card-bg);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative; /* Needed for absolute positioning of user-info */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        /* User Info / Logout Button positioned absolutely within header-container */
+        .header-user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.9em;
+            color: var(--text-light);
+            position: absolute;
+            top: 10px; /* Aligns with the top of the header padding */
+            right: 20px; /* Aligns with the right edge of the header padding */
+            z-index: 10; /* Ensures it stays on top of other content */
+        }
+        .header-user-info .action-link-button {
+            padding: 5px 10px; /* Smaller padding for button in header */
+            font-size: 0.8em; /* Smaller font size for button */
+        }
+
+        .header-logo {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: 15px; /* Adjusted: Space below logo for company name */
+            display: block; /* Ensures it takes its own line for centering */
+            margin-left: auto; /* Centers logo horizontally */
+            margin-right: auto; /* Centers logo horizontally */
+        }
+
+        .header-branding {
+            text-align: center;
+            margin-bottom: 0;
+            width: 100%; /* Ensures it spans the width for centering its content */
+        }
+        .header-branding h1 {
+            margin: 0;
+            font-size: 2.5em; /* Adjusted: Increased font size for company name to match screenshot */
+            color: var(--text-white);
+            line-height: 1.2; /* Vertical spacing for the text within itself */
+            border-bottom: none;
+            white-space: normal; /* Allow text to wrap if it's too long, prefer wrapping over cutting */
+            overflow: visible; /* Ensure content is not hidden */
+            text-overflow: clip; /* Ensure no ellipsis */
+        }
+
+        .header-subtitle {
+            font-size: 1.1em;
+            color: var(--link-color);
+            margin-top: 10px; /* Adjusted: Space from company name to subtitle */
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Ensures subtitle is always centered */
+            width: 100%;
+            padding: 0; /* No padding for full edge alignment if centered */
+            box-sizing: border-box;
+            border-bottom: none;
+        }
+
+        @media (max-width: 768px) { /* Adjust for mobile */
+            .header-container { padding: 10px; }
+            .header-user-info {
+                position: static; /* Stack on mobile */
+                margin-top: 10px;
+                justify-content: center;
+                width: 100%;
+                font-size: 0.8em;
+                flex-direction: column;
+                gap: 5px;
+                top: auto; /* Reset top */
+                right: auto; /* Reset right */
+            }
+            .header-logo { height: 60px; margin-bottom: 10px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; } /* Smaller font for mobile */
+            .header-subtitle {
+                font-size: 0.8em;
+                padding: 0;
+                margin-top: 5px;
+            }
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
+
+        /* --- FOOTER STYLING --- */
+        .footer-container {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .footer-copyright {
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: var(--text-light);
+        }
+        /* --- COMMON BUTTONS & LINKS --- */
+        .action-link-button {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .action-link-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- MESSAGES (Django) --- */
+        .messages {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 10px auto;
+            max-width: 900px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        .messages .success { background-color: var(--messages-success); }
+        .messages .error { background-color: var(--messages-error); }
+        .messages .info { background-color: var(--messages-info); }
+        .messages .warning { background-color: var(--messages-warning); }
+        .no-data { text-align: center; padding: 20px; color: var(--text-light); }
+
+        /* --- COMMON CONTAINER STYLES (for pages like lists, forms, profiles) --- */
+        .container, .profile-container, .form-container, .edit-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            margin: 20px auto;
+        }
+        .profile-container, .edit-container, .form-container { max-width: 800px; }
+        .container { max-width: 900px; }
+
+        h1, h2, h3 {
+            color: var(--text-white);
+        }
+        .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        /* --- DASHBOARD SPECIFIC LAYOUT --- */
+        .dashboard-grid-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+        }
+
+        .dashboard-grid-layout .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+        }
+        .card h2, .card h3, .card p, .card ul { /* Ensured content within cards is left-aligned */
+            text-align: left;
+        }
+        .card h2 {
+            color: var(--text-white);
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .card ul { /* Ensure lists within cards are properly formatted */
+            list-style: none;
+            padding-left: 0;
+            margin-top: 10px;
+        }
+        .card ul li {
+            border-bottom: 1px dashed var(--border-color);
+            padding: 5px 0;
+            margin-bottom: 5px;
+        }
+        .card ul li a {
+            color: var(--link-color);
+        }
+        /* Specific status colors */
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+        }
+        .status-item strong {
+            color: var(--text-white);
+        }
+        .status-item span {
+            background-color: var(--button-bg);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+        .expired-doc { color: var(--messages-error); font-weight: bold; }
+        .expiring-soon-doc { color: var(--messages-warning); font-weight: bold; }
+        .signoff-soon { color: var(--messages-info); }
+
+        .dashboard-links {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+    </style>
+    {# Block for page-specific CSS or JS #}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="header-container">
+        {# Logo is now centered due to its own margin: auto; and user info is absolute #}
+        <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+
+        <div class="header-user-info">
+            {% if request.user.is_authenticated %}
+                <span>Hello, {{ request.user.username }}!</span>
+                <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+            {% else %}
+                {# Display login button for login page #}
+                <a href="{% url 'login' %}" class="action-link-button">Login</a>
+            {% endif %}
+        </div>
+
+        <div class="header-branding">
+            <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
+        </div>
+
+        <p class="header-subtitle">{% block header_subtitle %}Crew Manning Agency Dashboard{% endblock %}</p>
+    </div>
+
+    {# Django messages go here #}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    <div class="main-content">
+        {% block content %}
+            {# Content from individual templates will go here #}
+        {% endblock %}
+    </div>
+
+    <div class="footer-container">
+        <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
+        {# Conditional Back to Dashboard link in footer #}
+        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
+            <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>

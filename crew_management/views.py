@@ -1,17 +1,17 @@
 import csv # For CSV handling
-import io 
-from django.http import HttpResponse 
+import io
+from django.http import HttpResponse
 
 from django.shortcuts import render, get_object_or_404, Http404, redirect
-from .models import CrewMember, Document, Principal, Vessel, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal   
-from django.db.models import Count 
-from django.utils import timezone 
-from datetime import timedelta 
-from django.contrib.auth.decorators import login_required 
-from django.contrib import messages 
+from .models import CrewMember, Document, Principal, Vessel, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal
+from django.db.models import Count
+from django.utils import timezone
+from datetime import timedelta
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 
-from crew_management.models import CrewMember 
-from .forms import CrewMemberProfileForm, PrincipalForm, VesselForm, DocumentForm, ExperienceHistoryForm, NextOfKinForm, CommunicationLogForm, ProfessionalReferenceForm, AppraisalForm  
+from crew_management.models import CrewMember
+from .forms import CrewMemberProfileForm, PrincipalForm, VesselForm, DocumentForm, ExperienceHistoryForm, NextOfKinForm, CommunicationLogForm, ProfessionalReferenceForm, AppraisalForm
 
 @login_required
 def dashboard_view(request):
@@ -450,12 +450,7 @@ def import_crew_csv(request):
                         'shoes_cm': shoes_cm,
                         'cap_cm': cap_cm,
                         'inseam_cm': inseam_cm,
-                        'working_gear_remarks': working_gear_remarks,
-                        # File fields (profile_picture, blank_cheque_leaf_copy) are complex to import from CSV
-                        # You would need separate logic to link files based on names if needed.
-                        # For initial import, leave them blank and upload via frontend later if required.
-                        # 'profile_picture': ...
-                        # 'blank_cheque_leaf_copy': ...
+                        'working_gear_remarks': working_gear_remarks
                     }
                 )
                 if created:
@@ -475,7 +470,7 @@ def import_crew_csv(request):
                 messages.error(request, "And more errors...")
 
         messages.success(request, f"Import complete: {imported_count} new crew members, {updated_count} updated, {skipped_count} skipped (including header).")
-        return redirect('crew_list') # Redirect to crew list after import
+        return redirect('import_crew_csv')
 
     return render(request, 'crew_management/import_crew_csv.html')
 
@@ -575,20 +570,13 @@ def principal_delete(request, pk):
 
     if request.method == 'GET': # Deletion triggered via a GET request from the button click
         try:
-            # Check for related objects before deleting (e.g., vessels associated with this principal)
-            # Django's default CASCADE will delete related vessels/crew if configured.
-            # You might want to add a check here if you prefer to prevent deletion if associated vessels/crew exist
-            # For example:
-            # if principal.vessels.exists():
-            #    messages.error(request, f"Cannot delete Principal '{principal.name}' because it has associated vessels.")
-            #    return redirect('principal_detail', pk=principal.pk)
-
             principal.delete()
             messages.success(request, f"Principal '{principal.name}' (ID: {pk}) has been successfully deleted.")
         except Exception as e:
             messages.error(request, f"Error deleting Principal '{principal.name}': {e}")
 
     return redirect('principal_list') # Redirect back to the principals list after deletion attempt
+
 
 # --- Vessel Management Views ---
 @login_required
@@ -670,6 +658,7 @@ def vessel_edit(request, pk):
     }
     return render(request, 'crew_management/vessel_form.html', context)
 
+# NEW: Vessel Delete View
 @login_required
 def vessel_delete(request, pk):
     """
@@ -696,6 +685,7 @@ def vessel_delete(request, pk):
             messages.error(request, f"Error deleting Vessel '{vessel.name}': {e}")
 
     return redirect('vessel_list') # Redirect back to the vessels list after deletion attempt
+
 
 # --- Document Management Views ---
 @login_required
@@ -793,6 +783,29 @@ def document_edit(request, pk): # Takes document pk to edit a specific document
         'button_text': 'Save Changes'
     }
     return render(request, 'crew_management/document_form.html', context)
+
+@login_required
+def document_delete(request, pk):
+    """
+    Handles the deletion of a Document record.
+    Accessible by staff users or the crew member who owns the document.
+    """
+    document = get_object_or_404(Document, pk=pk)
+    crew_member = document.crew_member
+
+    # Authorization: Only staff users or the owner crew member can delete documents
+    if not request.user.is_staff and not request.user == crew_member.user:
+        messages.error(request, "You are not authorized to delete this document.")
+        return redirect('document_list_for_crew', crew_pk=crew_member.pk)
+
+    if request.method == 'GET': # Deletion triggered via a GET request from the button click
+        try:
+            document.delete()
+            messages.success(request, f"Document '{document.document_name}' has been successfully deleted.")
+        except Exception as e:
+            messages.error(request, f"Error deleting document '{document.document_name}': {e}")
+
+    return redirect('document_list_for_crew', crew_pk=crew_member.pk)
 
 
 # --- Experience History Management Views ---
@@ -1164,7 +1177,7 @@ def professionalreference_edit(request, pk):
     if request.method == 'POST':
         form = ProfessionalReferenceForm(request.POST, instance=reference)
         if form.is_valid():
-            form.save()
+            form.save() # Date field will be auto_now
             messages.success(request, f"Professional Reference '{reference.contact_person}' updated successfully.")
             return redirect('professionalreference_list_for_crew', crew_pk=crew_member.pk)
         else:
@@ -1221,7 +1234,7 @@ def appraisal_create(request, crew_pk):
     # Authorization
     if not request.user.is_staff:
         if not request.user == crew_member.user:
-            raise Http404("You are not authorized to add appraisals for this profile.")
+            raise Http404("You are not authorized to add appraisals for this profile.") # Changed Http44 to Http404
 
     if request.method == 'POST':
         form = AppraisalForm(request.POST)

@@ -34,6 +34,7 @@ urlpatterns = [
     path('crew/<int:crew_pk>/documents/add/', views.document_create, name='document_create'),
     path('documents/<int:pk>/', views.document_detail, name='document_detail'),
     path('documents/<int:pk>/edit/', views.document_edit, name='document_edit'),
+    path('documents/<int:pk>/delete/', views.document_delete, name='document_delete'),
 
     # Experience History URLs (per crew member)
     path('crew/<int:crew_pk>/experience/', views.experience_list_for_crew, name='experience_list_for_crew'),
