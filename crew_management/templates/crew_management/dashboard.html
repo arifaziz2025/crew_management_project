@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agency Dashboard</title> {# Title is now static for this page #}
+    <title>Agency Dashboard</title>
     <style>
-        /* Base Colors (from base_login_dashboard.html) */
+        /* Base Colors (from crew_list.html) */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -33,10 +33,10 @@
             flex-direction: column;
         }
 
-        /* --- NEW: Top Utility Bar for Logout Button --- */
+        /* --- NEW: Top Utility Bar for user info/logout button (Consistent alignment) --- */
         .top-utility-bar {
             background-color: var(--main-bg-dark); /* Matches body background */
-            padding: 10px 20px;
+            padding: 10px 20px; /* Consistent padding from crew_list.html */
             display: flex;
             justify-content: flex-end; /* Aligns content to the right */
             align-items: center;
@@ -44,10 +44,16 @@
             color: var(--text-light);
             flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
             border-bottom: 1px solid var(--border-color); /* Subtle separator */
+            line-height: 1.2; /* Explicit line-height for better vertical alignment */
+        }
+
+        .top-utility-bar span,
+        .top-utility-bar .action-link-button {
+            vertical-align: middle; /* Ensure all inline-block elements align to middle */
         }
 
         .top-utility-bar .action-link-button {
-            padding: 5px 10px; /* Smaller padding for button in this bar */
+            padding: 5px 10px; /* Consistent padding from crew_list.html */
             font-size: 0.8em; /* Smaller font size for button */
             margin-left: 15px; /* Space between text and button */
         }
@@ -65,12 +71,11 @@
             flex-shrink: 0;
         }
 
-        /* Base logo and branding styles */
         .header-logo {
             height: 80px;
             width: auto;
             max-width: 100%;
-            margin-bottom: 10px; /* Adjusted: Changed from 15px to 10px to match login page */
+            margin-bottom: 10px;
             display: block;
             margin-left: auto;
             margin-right: auto;
@@ -82,32 +87,32 @@
             width: 100%;
         }
         .header-branding h1 {
-            white-space: nowrap; /* Ensures text stays on a single line */
-            font-size: 2.2em; /* Increased font size for the company name */
-            color: var(--text-white); /* Force white color */
+            white-space: nowrap;
+            font-size: 2.2em;
+            color: var(--text-white);
             margin: 0;
-            line-height: 1; /* Ensure tight spacing for h1 elements */
-            text-overflow: ellipsis; /* Add ellipsis if it overflows, combined with overflow: hidden */
-            overflow: hidden; /* Hide overflow content */
+            line-height: 1;
+            text-overflow: ellipsis;
+            overflow: hidden;
         }
 
         .header-subtitle {
             font-size: 1.2em;
-            color: var(--link-color) !important; /* Force the subtitle to be green */
-            margin-top: 5px; /* Adjust spacing below the company name lines */
+            color: var(--link-color) !important;
+            margin-top: 5px;
             line-height: 1;
         }
 
-        @media (max-width: 768px) { /* Adjust for mobile */
+        @media (max-width: 768px) {
             .top-utility-bar {
-                flex-direction: column; /* Stack items vertically on mobile */
+                flex-direction: column;
                 align-items: center;
-                gap: 5px; /* Reduce gap on mobile */
-                padding: 5px 10px; /* Smaller padding on mobile */
+                gap: 5px;
+                padding: 5px 10px;
             }
             .top-utility-bar .action-link-button {
-                margin-left: 0; /* Remove left margin when stacked */
-                margin-top: 5px; /* Add top margin for stacking */
+                margin-left: 0;
+                margin-top: 5px;
             }
 
             .header-container { padding: 10px; }
@@ -185,8 +190,7 @@
         .messages .warning { background-color: var(--messages-warning); }
         .no-data { text-align: center; padding: 20px; color: var(--text-light); }
 
-
-        /* --- DASHBOARD SPECIFIC LAYOUT (Original styles from dashboard.html, merged and prioritized) --- */
+        /* --- DASHBOARD SPECIFIC LAYOUT --- */
         .dashboard-container {
             max-width: 1200px; /* Wider container for dashboard */
             margin: auto;
@@ -212,6 +216,9 @@
             padding: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
+        .card h2, .card h3, .card p, .card ul { /* Ensured content within cards is left-aligned */
+            text-align: left;
+        }
         .card h2 {
             color: #8aff8a; /* Highlight for card titles */
             margin-top: 0;
@@ -223,7 +230,7 @@
             margin: 8px 0;
             color: #c0c0c0; /* Using hardcoded value from original dashboard.html for exact match */
         }
-        .card ul {
+        .card ul { /* Ensure lists within cards are properly formatted */
             list-style: none;
             padding: 0;
         }
@@ -255,6 +262,7 @@
             padding: 2px 8px;
             border-radius: 12px;
             font-size: 0.9em;
+            white-space: nowrap;
         }
         .alert-item {
             color: #ffcccc; /* Light red for alerts */
@@ -313,13 +321,12 @@
     </style>
 </head>
 <body>
-    {# NEW: Top Utility Bar for user info/logout button #}
+    {# Top Utility Bar #}
     <div class="top-utility-bar">
         {% if request.user.is_authenticated %}
             <span>Hello, {{ request.user.username }}!</span>
             <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
         {% else %}
-            {# Display login button, though typically dashboard is only for logged-in users #}
             <a href="{% url 'login' %}" class="action-link-button">Login</a>
         {% endif %}
     </div>
@@ -328,7 +335,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Dashboard Overview</p> {# Subtitle for Dashboard #}
+            <p class="header-subtitle">Dashboard Overview</p>
         </div>
     </div>
 
@@ -358,7 +365,7 @@
 
             <div class="card">
                 <h2>Document Alerts</h2>
-                <h3>Expiring Soon (next 6 months):</h3>
+                <h3>Expiring Soon (next 3 months):</h3>
                 {% if expiring_documents %}
                     <ul>
                         {% for doc in expiring_documents %}
@@ -391,10 +398,10 @@
 
             <div class="card">
                 <h2>Upcoming Crew Changes</h2>
-                <h3>Projected Sign-offs (next 2 months):</h3>
-                {% if upcoming_signoffs %}
+                <h3>Projected Sign-offs (next 6 months):</h3>
+                {% if upcoming_sign_offs %}
                     <ul>
-                        {% for crew in upcoming_signoffs %}
+                        {% for crew in upcoming_sign_offs %}
                             <li class="signoff-soon">
                                 <a href="{% url 'crew_profile_detail' pk=crew.id %}">
                                     {{ crew.first_name }} {{ crew.last_name }} (Rank: {{ crew.current_rank }}) - Sign-off: {{ crew.relieving_plan_date|date:"M j, Y" }}
@@ -428,8 +435,6 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
         {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}

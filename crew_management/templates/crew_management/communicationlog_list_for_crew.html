@@ -200,7 +200,7 @@
             margin: 20px auto;
         }
         .profile-container, .edit-container, .form-container { max-width: 800px; }
-        .container { max-width: 900px; } /* Specific for list pages */
+        .container { max-width: 900px; }
 
         h1, h2, h3 {
             color: var(--text-white);
@@ -218,26 +218,26 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            background-color: var(--card-bg); /* Use variable for consistency */
-            border: 1px solid var(--border-color); /* Use variable for consistency */
-            border-radius: 8px; /* Consistent with other containers */
-            overflow: hidden; /* Ensures rounded corners apply to table content */
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
         }
         th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color); /* Use variable for consistency */
+            border-bottom: 1px solid var(--border-color);
             color: var(--text-light);
         }
         th {
-            background-color: var(--button-bg); /* Use variable for consistency */
+            background-color: var(--button-bg);
             color: var(--text-white);
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
         tr:hover {
-            background-color: var(--button-hover-bg); /* Use variable for consistency */
+            background-color: var(--button-hover-bg);
         }
         td a {
             color: var(--link-color);
@@ -252,15 +252,15 @@
             color: var(--text-light);
         }
         .action-link-button {
-            background-color: var(--button-bg); /* Use variable for consistency */
-            color: var(--text-white); /* Use variable for consistency */
-            padding: 8px 15px; /* Smaller padding for these specific buttons */
-            border-radius: 4px; /* Consistent with other forms */
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 8px 15px;
+            border-radius: 4px;
             margin-bottom: 20px;
             margin-right: 10px;
         }
         .action-link-button:hover {
-            background-color: var(--button-hover-bg); /* Use variable for consistency */
+            background-color: var(--button-hover-bg);
         }
     </style>
 </head>
@@ -280,7 +280,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Communication Log History</p> {# Subtitle for Communication Log History #}
+            <p class="header-subtitle">Communication Log History</p>
         </div>
     </div>
 
@@ -297,7 +297,7 @@
             <h1>Communication Log for {{ crew.first_name }} {{ crew.last_name }}</h1>
             {% if request.user.is_staff or request.user == crew.user %}
                 <p>
-                    <a href="{% url 'communicationlog_create' crew_pk=crew.pk %}" class="action-link-button">+ Add New Log Entry</a>
+                    <a href="{% url 'communicationlog_add' crew_pk=crew.pk %}" class="action-link-button">+ Add New Log Entry</a>
                 </p>
             {% endif %}
 
@@ -336,9 +336,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document: {{ document.document_name }}</title>
     <style>
-        /* Base Colors (from base_login_dashboard.html) */
+        /* Base Colors */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -47,15 +47,15 @@
         }
 
         .top-utility-bar .action-link-button {
-            padding: 5px 10px; /* Smaller padding for button in this bar */
-            font-size: 0.8em; /* Smaller font size for button */
-            margin-left: 15px; /* Space between text and button */
+            padding: 5px 10px;
+            font-size: 0.8em;
+            margin-left: 15px;
         }
 
         /* --- HEADER STYLING --- */
         .header-container {
             background-color: var(--card-bg);
-            padding: 10px 20px; /* Consistent padding */
+            padding: 10px 20px;
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             position: relative;
@@ -69,7 +69,7 @@
             height: 80px;
             width: auto;
             max-width: 100%;
-            margin-bottom: 10px; /* Consistent margin from login/dashboard */
+            margin-bottom: 10px;
             display: block;
             margin-left: auto;
             margin-right: auto;
@@ -81,8 +81,8 @@
             width: 100%;
         }
         .header-branding h1 {
-            white-space: nowrap; /* Ensures text stays on a single line */
-            font-size: 2.2em; /* Consistent large font size */
+            white-space: nowrap;
+            font-size: 2.2em;
             color: var(--text-white);
             margin: 0;
             line-height: 1;
@@ -91,13 +91,13 @@
         }
 
         .header-subtitle {
-            font-size: 1.2em; /* Consistent subtitle font size */
+            font-size: 1.2em;
             color: var(--link-color) !important;
-            margin-top: 5px; /* Consistent spacing */
+            margin-top: 5px;
             line-height: 1;
         }
 
-        @media (max-width: 768px) { /* Adjust for mobile */
+        @media (max-width: 768px) {
             .top-utility-bar {
                 flex-direction: column;
                 align-items: center;
@@ -207,7 +207,7 @@
         }
 
         /* Styles specific to Document Detail page */
-        .profile-container { max-width: 800px; } /* Override common container to be 800px */
+        .profile-container { max-width: 800px; }
         .detail-section h2 {
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
@@ -222,11 +222,11 @@
         .detail-item strong {
             display: inline-block;
             width: 180px;
-            color: var(--text-light); /* Use variable for consistency */
+            color: var(--text-light);
         }
         .button-container {
             text-align: right;
-            margin-top: 0px; /* Adjusted to remove extra top margin */
+            margin-top: 0px;
             margin-bottom: 20px;
             padding-top: 10px;
         }
@@ -250,7 +250,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Document Details</p> {# Subtitle for Document Details #}
+            <p class="header-subtitle">Document Details</p>
         </div>
     </div>
 
@@ -263,10 +263,10 @@
 
     {# Main Content Area #}
     <div class="main-content">
-        <div class="profile-container"> {# Original container from document_detail.html #}
+        <div class="profile-container">
             <h1>Document: {{ document.document_name }}</h1>
             <div class="button-container">
-                {% if request.user.is_staff or request.user == crew.user %}
+                {% if request.user.is_staff or request.user == crew_member.user %}
                     <a href="{% url 'document_edit' pk=document.pk %}" class="action-link-button">Edit Document</a>
                 {% endif %}
             </div>
@@ -296,8 +296,8 @@
             </div>
 
             <p style="text-align: center; margin-top: 30px;">
-                <a href="{% url 'document_list_for_crew' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Documents List</a>
-                <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
+                <a href="{% url 'crew_document_list' pk=crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Documents List</a>
+                <a href="{% url 'crew_profile_detail' pk=crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
             </p>
         </div>
     </div>
@@ -305,8 +305,6 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
         {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}

@@ -1,13 +1,13 @@
+# crew_management/models.py
+
 from django.db import models
 from django.utils import timezone
-from datetime import date # Import date for age calculation
-from django.contrib.auth.models import User # <--- ADD THIS LINE
-# ... (rest of your existing imports and helper functions)
-# Helper function to calculate age from date of birth
+from datetime import date
+from django.contrib.auth.models import User
 
+# Helper function to calculate age from date of birth
 def calculate_age(dob):
     today = date.today()
-    # Subtract years, then subtract 1 if birthday hasn't occurred yet this year
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 # Helper function to calculate total experience in YYMMDD format
@@ -25,12 +25,44 @@ def calculate_experience(sign_on_date, sign_off_date):
 
     return f"{years:02d}Y{months:02d}M{days:02d}D"
 
+
+class Principal(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    contact_person = models.CharField(max_length=200, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    remarks = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Principal"
+        verbose_name_plural = "Principals"
+
+
+class Vessel(models.Model):
+    name = models.CharField(max_length=255)
+    imo_number = models.CharField(max_length=7, unique=True, verbose_name="IMO Number")
+    vessel_type = models.CharField(max_length=100)
+    flag_state = models.CharField(max_length=100)
+    associated_principal = models.ForeignKey(Principal, on_delete=models.SET_NULL, null=True, blank=True,
+                                            related_name='vessels')
+
+    def __str__(self):
+        return f"{self.name} ({self.imo_number})"
+
+    class Meta:
+        verbose_name = "Vessel"
+        verbose_name_plural = "Vessels"
+
+
 class CrewMember(models.Model):
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True,
                                 related_name='crew_profile',
                                 help_text="Link to the corresponding user account for login (optional)")
-    
-    # Profile Picture Upload/Display (We'll handle actual upload path later)
+
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
 
     # ----------------------------------
@@ -80,34 +112,19 @@ class CrewMember(models.Model):
     # ----------------------------------
     # Employment Details
     # ----------------------------------
-    # Rank will likely be a foreign key to a separate Rank model later, for now CharField
     current_rank = models.CharField(max_length=100, verbose_name="Current Rank")
     joined_in_company = models.DateField(verbose_name="Date Joined Company")
     joined_in_rank = models.CharField(max_length=100, verbose_name="Rank when First Joined")
-    # Principal will be a foreign key to a Principal model later
-    principal = models.ForeignKey('Principal', on_delete=models.SET_NULL, null=True, blank=True,
+    principal = models.ForeignKey(Principal, on_delete=models.SET_NULL, null=True, blank=True,
                                 related_name='crew_members', verbose_name="Main Principal/Client")
     crew_status = models.CharField(max_length=20, choices=SEAFARER_STATUS_CHOICES)
-    performance_rating = models.IntegerField(null=True, blank=True, help_text="Rating out of 5") # Example: 1-5 rating
+    performance_rating = models.IntegerField(null=True, blank=True, help_text="Rating out of 5")
     relieving_plan_date = models.DateField(null=True, blank=True, verbose_name="Projected Next Sign-off Date")
     last_sign_off_date = models.DateField(null=True, blank=True)
-    # Vessel assignment will be a foreign key to a Vessel model later
-    current_vessel = models.ForeignKey('Vessel', on_delete=models.SET_NULL, null=True, blank=True,
+    current_vessel = models.ForeignKey(Vessel, on_delete=models.SET_NULL, null=True, blank=True,
                                     related_name='current_crew', verbose_name="Current Vessel")
-    ssb_no = models.CharField(max_length=50, blank=True, verbose_name="SSB No.") # Can be blank if not available
+    ssb_no = models.CharField(max_length=50, blank=True, verbose_name="SSB No.")
     client_name_for_appraisal = models.CharField(max_length=200, blank=True, verbose_name="Client Name (for appraisal)")
-
-    # ----------------------------------
-    # Communication Log
-    # ----------------------------------
-    # This will be a separate model related to CrewMember, as it's a list of entries.
-    # We'll define it after CrewMember.
-
-    # ----------------------------------
-    # Family / Next of Kin Records
-    # ----------------------------------
-    # This will be a separate model related to CrewMember, as there can be multiple entries.
-    # We'll define it after CrewMember.
 
     # ----------------------------------
     # Bank Account Fields
@@ -119,12 +136,6 @@ class CrewMember(models.Model):
     iban = models.CharField(max_length=34, verbose_name="IBAN")
     swift_code = models.CharField(max_length=11, verbose_name="SWIFT Code")
     blank_cheque_leaf_copy = models.FileField(upload_to='bank_docs/', null=True, blank=True, verbose_name="Copy of Blank Cheque Leaf")
-
-    # ----------------------------------
-    # Professional Reference Fields
-    # ----------------------------------
-    # This will be a separate model related to CrewMember, as there can be multiple entries.
-    # We'll define it after CrewMember.
 
     # ----------------------------------
     # Working Gear Fields
@@ -142,34 +153,36 @@ class CrewMember(models.Model):
     @property
     def bmi(self):
         if self.height_ft and self.weight_kg:
-            # Convert height from feet to meters for BMI calculation (1 ft = 0.3048 m)
             height_m = float(self.height_ft) * 0.3048
             if height_m > 0:
                 return round(float(self.weight_kg) / (height_m ** 2), 2)
         return None
 
     # ----------------------------------
-    # Appraisal Fields
+    # Common fields (for audit/tracking)
     # ----------------------------------
-    # This will be a separate model related to CrewMember, as there can be multiple appraisals.
-    # We'll define it after CrewMember.
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-# ... (all your existing models, after Appraisal, before Principal/Vessel placeholders if you put them there) ...
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} ({self.seafarer_code})"
 
-# ----------------------------------
-# Experience History (Sea Service Records)
-# ----------------------------------
+    class Meta:
+        verbose_name = "Crew Member"
+        verbose_name_plural = "Crew Members"
+
+
 class ExperienceHistory(models.Model):
     crew_member = models.ForeignKey(CrewMember, on_delete=models.CASCADE, related_name='experience_history')
     company_principal_name = models.CharField(max_length=255, verbose_name="Company/Principal Name")
     vessel_name = models.CharField(max_length=255)
-    vessel_type = models.CharField(max_length=100, blank=True, null=True) # Optional as per your req
+    vessel_type = models.CharField(max_length=100, blank=True, null=True)
     rank = models.CharField(max_length=100)
     payscale_wages = models.CharField(max_length=100, blank=True, null=True, verbose_name="Payscale/Wages (Optional for Other Co.)")
     port_of_joining = models.CharField(max_length=100)
     sign_on_date = models.DateField()
     sign_off_date = models.DateField()
-    port_of_sign_off = models.CharField(max_length=100, blank=True, null=True) # Optional as per your req
+    port_of_sign_off = models.CharField(max_length=100, blank=True, null=True)
 
     # Calculated Properties (not stored in DB, generated when accessed)
     @property
@@ -193,19 +206,7 @@ class ExperienceHistory(models.Model):
     class Meta:
         verbose_name = "Experience Record"
         verbose_name_plural = "Experience History"
-        ordering = ['-sign_on_date'] # Order by most recent experience first
-    # ----------------------------------
-    # Common fields (e.g., for audit/tracking)
-    # ----------------------------------
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.seafarer_code})"
-
-    class Meta:
-        verbose_name = "Crew Member"
-        verbose_name_plural = "Crew Members"
+        ordering = ['-sign_on_date'] # Issue Fix: Changed from -start_date
 
 
 class CommunicationLog(models.Model):
@@ -222,7 +223,7 @@ class CommunicationLog(models.Model):
     class Meta:
         verbose_name = "Communication Log Entry"
         verbose_name_plural = "Communication Log Entries"
-        ordering = ['-date'] # Order by latest date first
+        ordering = ['-date']
 
 
 class NextOfKin(models.Model):
@@ -239,7 +240,7 @@ class NextOfKin(models.Model):
     ]
     relation_with_seafarer = models.CharField(max_length=50, choices=RELATION_CHOICES, verbose_name="Relation With Seafarer")
     cnic_no = models.CharField(max_length=15, unique=True, verbose_name="CNIC No.")
-    cnic_copy = models.FileField(upload_to='cnic_copies/', verbose_name="CNIC Copy") # Mandatory file upload
+    cnic_copy = models.FileField(upload_to='cnic_copies/', verbose_name="CNIC Copy")
     place_of_birth = models.CharField(max_length=100)
     country_of_birth = models.CharField(max_length=100)
     nationality = models.CharField(max_length=100)
@@ -281,7 +282,7 @@ class ProfessionalReference(models.Model):
 
 class Appraisal(models.Model):
     crew_member = models.ForeignKey(CrewMember, on_delete=models.CASCADE, related_name='appraisals')
-    vessel = models.ForeignKey('Vessel', on_delete=models.SET_NULL, null=True, blank=True,
+    vessel = models.ForeignKey(Vessel, on_delete=models.SET_NULL, null=True, blank=True,
                             verbose_name="Vessel Name (Auto Appearing)")
     evaluation_date = models.DateField()
     date_sign_on = models.DateField(verbose_name="Date Sign On")
@@ -293,9 +294,6 @@ class Appraisal(models.Model):
     overall_score_obtained = models.IntegerField(help_text="e.g., 3")
     remarks = models.TextField()
 
-    # These fields will be populated automatically when an appraisal is created/updated
-    # and linked to a CrewMember.
-    # They are not directly stored on Appraisal, but pulled from CrewMember/Vessel
     @property
     def seafarer_name(self):
         return f"{self.crew_member.first_name} {self.crew_member.last_name}"
@@ -314,43 +312,8 @@ class Appraisal(models.Model):
     class Meta:
         verbose_name = "Appraisal"
         verbose_name_plural = "Appraisals"
-        ordering = ['-evaluation_date']
+        ordering = ['-evaluation_date'] # Issue Fix: Changed from -appraisal_date
 
-
-# Placeholder models for Principal and Vessel (will be fleshed out later)
-# These are needed for ForeignKey relationships in CrewMember and Appraisal
-class Principal(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    contact_person = models.CharField(max_length=200, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    address = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        verbose_name = "Principal"
-        verbose_name_plural = "Principals"
-
-class Vessel(models.Model):
-    name = models.CharField(max_length=255)
-    imo_number = models.CharField(max_length=7, unique=True, verbose_name="IMO Number")
-    vessel_type = models.CharField(max_length=100)
-    flag_state = models.CharField(max_length=100)
-    associated_principal = models.ForeignKey(Principal, on_delete=models.SET_NULL, null=True, blank=True,
-                                            related_name='vessels')
-
-    def __str__(self):
-        return f"{self.name} ({self.imo_number})"
-
-    class Meta:
-        verbose_name = "Vessel"
-        verbose_name_plural = "Vessels"
-
-        # ----------------------------------
-# Document Management and Validity Tracking
-# ----------------------------------
 
 class Document(models.Model):
     crew_member = models.ForeignKey(CrewMember, on_delete=models.CASCADE, related_name='documents')
@@ -370,10 +333,10 @@ class Document(models.Model):
     document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
     place_of_issue = models.CharField(max_length=100)
     issuing_country = models.CharField(max_length=100)
-    document_no = models.CharField(max_length=100, unique=True) # Assuming document numbers are unique globally
+    document_no = models.CharField(max_length=100, unique=False) # Issue Fix: Changed to unique=False
     issue_date = models.DateField()
-    expiry_date = models.DateField(null=True, blank=True) # Some documents may not have expiry
-    document_file = models.FileField(upload_to='crew_documents/', null=True, blank=True) # Actual file upload
+    expiry_date = models.DateField(null=True, blank=True)
+    document_file = models.FileField(upload_to='crew_documents/', null=True, blank=True)
 
     # Auto-tracked fields
     created_at = models.DateTimeField(auto_now_add=True)
@@ -397,5 +360,6 @@ class Document(models.Model):
     class Meta:
         verbose_name = "Document"
         verbose_name_plural = "Documents"
-        unique_together = ('crew_member', 'document_name', 'document_type', 'document_no') # Prevent exact duplicates for a crew member
-        ordering = ['expiry_date'] # Order by expiry date
+        # Issue Fix: Added unique_together for robust unique constraint
+        unique_together = ('crew_member', 'document_name', 'document_type', 'document_no')
+        ordering = ['expiry_date']

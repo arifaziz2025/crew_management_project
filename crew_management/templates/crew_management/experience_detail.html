@@ -214,7 +214,6 @@
         }
 
         /* Styles specific to Experience Detail page */
-        /* Overriding common container style for experience_detail specifically if needed */
         .profile-container { max-width: 800px; }
         .detail-section h2 {
             border-bottom: 1px solid var(--border-color);
@@ -235,7 +234,6 @@
         .action-link-button {
             background-color: var(--button-bg);
             color: var(--text-white);
-            /* Already defined in common section, but ensuring consistency */
         }
         .action-link-button:hover {
             background-color: var(--button-hover-bg);
@@ -264,7 +262,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Experience Details</p> {# Subtitle for Experience Details #}
+            <p class="header-subtitle">Experience Details</p>
         </div>
     </div>
 
@@ -280,14 +278,14 @@
         <div class="profile-container">
             <h1>Experience on {{ experience.vessel_name }}</h1>
             <div class="button-container">
-                {% if request.user.is_staff or request.user == crew.user %}
+                {% if request.user.is_staff or request.user == experience.crew_member.user %}
                     <a href="{% url 'experience_edit' pk=experience.pk %}" class="action-link-button">Edit Record</a>
                 {% endif %}
             </div>
 
             <div class="detail-section">
                 <h2>Record Details</h2>
-                <div class="detail-item"><strong>Crew Member:</strong> <a href="{% url 'crew_profile_detail' pk=crew.pk %}">{{ crew.first_name }} {{ crew.last_name }}</a></div>
+                <div class="detail-item"><strong>Crew Member:</strong> <a href="{% url 'crew_profile_detail' pk=experience.crew_member.pk %}">{{ experience.crew_member.first_name }} {{ experience.crew_member.last_name }}</a></div>
                 <div class="detail-item"><strong>Company/Principal:</strong> {{ experience.company_principal_name }}</div>
                 <div class="detail-item"><strong>Vessel Name:</strong> {{ experience.vessel_name }}</div>
                 <div class="detail-item"><strong>Vessel Type:</strong> {{ experience.vessel_type|default:"N/A" }}</div>
@@ -301,8 +299,8 @@
             </div>
 
             <p style="text-align: center; margin-top: 30px;">
-                <a href="{% url 'experience_list_for_crew' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Experience List</a>
-                <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
+                <a href="{% url 'crew_experience_list' crew_pk=experience.crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Experience List</a>
+                <a href="{% url 'crew_profile_detail' pk=experience.crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
             </p>
         </div>
     </div>
@@ -310,9 +308,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

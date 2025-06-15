@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appraisal for {{ appraisal.crew_member.first_name }}</title>
+    <title>Appraisal for {{ appraisal.crew_member.first_name }} {{ appraisal.crew_member.last_name }}</title>
     <style>
         /* Base Colors */
         :root {
@@ -214,8 +214,6 @@
         }
 
         /* Styles specific to Appraisal Detail page */
-        /* Overriding common container style for appraisal_detail specifically if needed */
-        .profile-container { max-width: 800px; }
         .detail-section h2 {
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
@@ -235,7 +233,6 @@
         .action-link-button {
             background-color: var(--button-bg);
             color: var(--text-white);
-            /* Already defined in common section, but ensuring consistency */
         }
         .action-link-button:hover {
             background-color: var(--button-hover-bg);
@@ -264,7 +261,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Appraisal Details</p> {# Subtitle for Appraisal Details #}
+            <p class="header-subtitle">Appraisal Details</p>
         </div>
     </div>
 
@@ -278,9 +275,9 @@
     {# Main Content Area #}
     <div class="main-content">
         <div class="profile-container">
-            <h1>Appraisal for {{ crew.first_name }} {{ crew.last_name }}</h1>
+            <h1>Appraisal for {{ appraisal.crew_member.first_name }} {{ appraisal.crew_member.last_name }}</h1>
             <div class="button-container">
-                {% if request.user.is_staff or request.user == crew.user %}
+                {% if request.user.is_staff or request.user == appraisal.crew_member.user %}
                     <a href="{% url 'appraisal_edit' pk=appraisal.pk %}" class="action-link-button">Edit Appraisal</a>
                 {% endif %}
             </div>
@@ -302,20 +299,15 @@
                 <div class="detail-item"><strong>Joining Port:</strong> {{ appraisal.joining_port }}</div>
                 <div class="detail-item"><strong>Date Sign Off:</strong> {{ appraisal.date_sign_off|date:"M j, Y" }}</div>
                 <div class="detail-item"><strong>Port of Discharge:</strong> {{ appraisal.port_of_discharge }}</div>
-
-                {# Restoring Reason Signed Off to its original, separate position #}
                 <div class="detail-item"><strong>Reason Signed Off:</strong> <span>{{ appraisal.reason_signed_off|linebreaksbr }}</span></div>
-
                 <div class="detail-item"><strong>Total Score:</strong> {{ appraisal.total_score }}</div>
                 <div class="detail-item"><strong>Overall Score Obtained:</strong> {{ appraisal.overall_score_obtained }}</div>
-
-                {# Restoring Remarks to its original, separate position #}
                 <div class="detail-item"><strong>Remarks:</strong> <span>{{ appraisal.remarks|linebreaksbr }}</span></div>
             </div>
 
             <p style="text-align: center; margin-top: 30px;">
-                <a href="{% url 'appraisal_list_for_crew' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Appraisals List</a>
-                <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
+                <a href="{% url 'crew_appraisal_list' crew_pk=appraisal.crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Appraisals List</a>
+                <a href="{% url 'crew_profile_detail' pk=appraisal.crew_member.pk %}" class="action-link-button">Back to Crew Profile</a>
             </p>
         </div>
     </div>
@@ -323,9 +315,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

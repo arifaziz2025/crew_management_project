@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Principal: {{ principal.name }}</title>
     <style>
-        /* Base Colors (from base_login_dashboard.html) */
+        /* Base Colors */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -33,7 +33,7 @@
             flex-direction: column;
         }
 
-        /* --- NEW: Top Utility Bar for Logout Button --- */
+        /* --- NEW: Top Utility Bar for Logout Button (Consistent alignment) --- */
         .top-utility-bar {
             background-color: var(--main-bg-dark); /* Matches body background */
             padding: 10px 20px; /* Consistent padding from crew_list.html */
@@ -213,13 +213,12 @@
         }
 
         /* Styles specific to Principal Detail page */
-        /* Overriding common container style for principal_detail specifically if needed */
         .profile-container { max-width: 800px; }
         .detail-section h2 {
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
             margin-top: 35px;
-            color: var(--text-white); /* Used variable */
+            color: var(--text-white);
             font-size: 1.8em;
         }
         .detail-item {
@@ -229,25 +228,24 @@
         .detail-item strong {
             display: inline-block;
             width: 180px;
-            color: var(--text-light); /* Used variable */
+            color: var(--text-light);
         }
         .action-link-button {
-            /* These styles are already in common section, adjusting only specific overrides */
-            background-color: var(--button-bg); /* Used variable */
-            color: var(--text-white); /* Used variable */
+            background-color: var(--button-bg);
+            color: var(--text-white);
         }
         .action-link-button:hover {
-            background-color: var(--button-hover-bg); /* Used variable */
+            background-color: var(--button-hover-bg);
         }
         .button-container {
             text-align: right;
-            margin-top: 0px; /* Adjusted to remove extra top margin from original file */
+            margin-top: 0px;
             margin-bottom: 20px;
             padding-top: 10px;
         }
         .vessel-list ul { list-style: none; padding: 0; }
         .vessel-list li { margin-bottom: 8px; }
-        .vessel-list li a { color: var(--link-color); } /* Used variable */
+        .vessel-list li a { color: var(--link-color); }
     </style>
 </head>
 <body>
@@ -266,7 +264,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Principal Details</p> {# Subtitle for Principal Details #}
+            <p class="header-subtitle">Principal Details</p>
         </div>
     </div>
 
@@ -281,7 +279,6 @@
     <div class="main-content">
         <div class="profile-container">
             <h1>Principal: {{ principal.name }}</h1>
-            {# MOVED BUTTON CONTAINER HERE - after H1 and before the first detail section #}
             <div class="button-container">
                 {% if request.user.is_staff %}
                     <a href="{% url 'principal_edit' pk=principal.pk %}" class="action-link-button">Edit Principal</a>
@@ -320,8 +317,6 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
         {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}

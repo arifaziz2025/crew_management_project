@@ -220,7 +220,7 @@
         form input[type="text"],
         form input[type="email"],
         form input[type="tel"],
-        form input[type="date"], /* Target this specifically for date input */
+        form input[type="date"],
         form textarea,
         form select,
         form input[type="number"] {
@@ -228,21 +228,17 @@
             padding: 10px;
             border: 1px solid var(--button-bg);
             border-radius: 4px;
-            background-color: var(--main-bg-dark); /* Default dark background for most inputs */
-            color: var(--text-white); /* Default light text for most inputs */
+            background-color: var(--main-bg-dark);
+            color: var(--text-white);
             box-sizing: border-box;
         }
-        /* --- MODIFIED: Specific styles for date inputs to make calendar icon visible ONLY --- */
         form input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1); /* Invert colors to make a dark icon light on a dark background */
+            filter: invert(1);
             cursor: pointer;
-            /* Make it slightly larger and perhaps shift it to make it more prominent if needed */
-            font-size: 1.2em; /* Increase size of the icon */
-            padding-left: 5px; /* Add some padding if necessary */
+            font-size: 1.2em;
+            padding-left: 5px;
         }
-        /* For Firefox, the styling is more limited, but we can try to ensure background contrast */
         form input[type="date"] {
-            /* Ensure the input field itself remains dark for consistency with other fields */
             background-color: var(--main-bg-dark);
             color: var(--text-white);
         }
@@ -271,8 +267,8 @@
             margin-bottom: 15px;
         }
         form button[type="submit"] {
-            background-color: var(--link-color); /* Green for submit button */
-            color: var(--main-bg-dark); /* Dark text on green button */
+            background-color: var(--link-color);
+            color: var(--main-bg-dark);
             border: none;
             padding: 12px 25px;
             border-radius: 4px;
@@ -282,7 +278,7 @@
             margin-top: 20px;
         }
         form button[type="submit"]:hover {
-            filter: brightness(90%); /* Subtle darken on hover */
+            filter: brightness(90%);
         }
         .back-link-bottom {
             text-align: center;
@@ -309,7 +305,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Add New Crew Member</p> {# Subtitle for Add Crew Page #}
+            <p class="header-subtitle">Add New Crew Member</p>
         </div>
     </div>
 
@@ -327,15 +323,12 @@
 
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
-
                 {{ form.as_p }}
-
                 <button type="submit" class="action-link-button">Add Crew Member</button>
             </form>
 
             <p class="back-link-bottom">
                 <a href="{% url 'crew_list' %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Roster</a>
-                <a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a>
             </p>
         </div>
     </div>
@@ -343,7 +336,6 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
         {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}

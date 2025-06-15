@@ -209,14 +209,12 @@
         .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: none; /* REMOVED LINE */
+            border-bottom: none;
             padding-bottom: 15px;
         }
 
         /* Styles specific to Professional Reference Detail page */
-        /* Overriding common container style for principal_detail specifically if needed */
         .profile-container { max-width: 800px; }
-        /* h1 style from .container h1 is inherited and applies here for the main page title */
         .detail-section h2 {
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
@@ -236,7 +234,6 @@
         .action-link-button {
             background-color: var(--button-bg);
             color: var(--text-white);
-            /* Already defined in common section, but ensuring consistency */
         }
         .action-link-button:hover {
             background-color: var(--button-hover-bg);
@@ -265,7 +262,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Professional Reference Details</p> {# Subtitle for Professional Reference Details #}
+            <p class="header-subtitle">Professional Reference Details</p>
         </div>
     </div>
 
@@ -281,14 +278,14 @@
         <div class="profile-container">
             <h1>Professional Reference: {{ reference.contact_person }}</h1>
             <div class="button-container">
-                {% if request.user.is_staff or request.user == crew.user %}
+                {% if request.user.is_staff or request.user == reference.crew_member.user %}
                     <a href="{% url 'professionalreference_edit' pk=reference.pk %}" class="action-link-button">Edit Record</a>
                 {% endif %}
             </div>
 
             <div class="detail-section">
                 <h2>Reference Details</h2>
-                <div class="detail-item"><strong>Crew Member:</strong> <a href="{% url 'crew_profile_detail' pk=crew.pk %}">{{ crew.first_name }} {{ crew.last_name }}</a></div>
+                <div class="detail-item"><strong>Crew Member:</strong> <a href="{% url 'crew_profile_detail' pk=reference.crew_member.pk %}">{{ reference.crew_member.first_name }} {{ reference.crew_member.last_name }}</a></div>
                 <div class="detail-item"><strong>Company Name:</strong> {{ reference.company_name }}</div>
                 <div class="detail-item"><strong>Designation:</strong> {{ reference.designation }}</div>
                 <div class="detail-item"><strong>Email ID:</strong> {{ reference.email_id }}</div>
@@ -300,8 +297,8 @@
             </div>
 
             <p style="text-align: center; margin-top: 30px;">
-                <a href="{% url 'professionalreference_list_for_crew' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Reference List</a>
-                <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
+                <a href="{% url 'crew_professional_reference_list' crew_pk=reference.crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Reference List</a>
+                <a href="{% url 'crew_profile_detail' pk=reference.crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Crew Profile</a>
             </p>
         </div>
     </div>
@@ -309,9 +306,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

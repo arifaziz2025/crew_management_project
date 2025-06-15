@@ -213,8 +213,7 @@
         }
 
         /* Styles specific to Professional Reference Form page */
-        .form-container { max-width: 600px; } /* Override common container to be 600px */
-        /* h1 style from .container h1 is inherited and applies here */
+        .form-container { max-width: 600px; }
         form p { /* Styles for Django form fields wrapped in <p> */
             margin-bottom: 15px;
             color: var(--text-light);
@@ -237,8 +236,6 @@
             background-color: var(--link-color); color: var(--main-bg-dark); border: none; padding: 12px 25px; border-radius: 4px;
             cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; margin-top: 20px; }
         form button[type="submit"]:hover { background-color: var(--link-color); filter: brightness(90%); }
-        /* a { color: var(--link-color); text-decoration: none; margin-top: 10px; display: inline-block; } Already defined in common section */
-        /* a:hover { text-decoration: underline; } Already defined in common section */
     </style>
 </head>
 <body>
@@ -257,7 +254,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Professional Reference Form</p> {# Subtitle for Professional Reference Form #}
+            <p class="header-subtitle">Professional Reference Form</p>
         </div>
     </div>
 
@@ -280,10 +277,10 @@
             </form>
 
             <p>
-                {% if reference %} {# If editing an existing record #}
+                {% if reference %}
                     <a href="{% url 'professionalreference_detail' pk=reference.pk %}">Back to Record Details</a>
-                {% else %} {# If creating a new record #}
-                    <a href="{% url 'professionalreference_list_for_crew' crew_pk=crew.pk %}">Back to References List</a>
+                {% else %}
+                    <a href="{% url 'crew_professional_reference_list' crew_pk=crew.pk %}">Back to References List</a>
                 {% endif %}
                 <span style="margin: 0 10px;">|</span>
                 <a href="{% url 'crew_profile_detail' pk=crew.pk %}">Back to Crew Profile</a>
@@ -294,9 +291,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

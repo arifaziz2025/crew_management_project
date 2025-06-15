@@ -218,21 +218,20 @@
             max-width: 600px; /* Smaller container for a simple form */
             text-align: center;
         }
-        /* h1 style from .container h1 is inherited and applies here */
         input[type="file"] {
             display: block;
             width: calc(100% - 20px);
             margin: 20px auto;
             padding: 10px;
-            border: 1px solid var(--button-bg); /* Use variable for consistency */
+            border: 1px solid var(--button-bg);
             border-radius: 4px;
-            background-color: var(--main-bg-dark); /* Use variable for consistency */
-            color: var(--text-white); /* Use variable for consistency */
+            background-color: var(--main-bg-dark);
+            color: var(--text-white);
             box-sizing: border-box;
         }
         button[type="submit"] {
-            background-color: var(--link-color); /* Use variable for consistency */
-            color: var(--main-bg-dark); /* Use variable for consistency */
+            background-color: var(--link-color);
+            color: var(--main-bg-dark);
             border: none;
             padding: 12px 25px;
             border-radius: 4px;
@@ -242,16 +241,14 @@
             margin-top: 20px;
         }
         button[type="submit"]:hover {
-            background-color: var(--link-color); /* Use variable for consistency */
-            filter: brightness(90%); /* Consistent hover effect */
+            background-color: var(--link-color);
+            filter: brightness(90%);
         }
         .guidance {
             font-size: 0.9em;
-            color: var(--text-light); /* Use variable for consistency */
+            color: var(--text-light);
             margin-bottom: 20px;
         }
-        /* a { color: var(--link-color); text-decoration: none; margin-top: 15px; display: inline-block; } Already defined in common section */
-        /* a:hover { text-decoration: underline; } Already defined in common section */
     </style>
 </head>
 <body>
@@ -270,7 +267,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Import Crew from CSV</p> {# Subtitle for Import Crew from CSV #}
+            <p class="header-subtitle">Import Crew from CSV</p>
         </div>
     </div>
 
@@ -302,9 +299,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

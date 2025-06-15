@@ -200,7 +200,7 @@
             margin: 20px auto;
         }
         .profile-container, .edit-container, .form-container { max-width: 800px; }
-        .container { max-width: 900px; } /* Specific for list pages */
+        .container { max-width: 900px; }
 
         h1, h2, h3 {
             color: var(--text-white);
@@ -217,29 +217,29 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            background-color: var(--card-bg); /* Use variable for consistency */
-            border: 1px solid var(--border-color); /* Use variable for consistency */
-            border-radius: 8px; /* Consistent with other containers */
-            overflow: hidden; /* Ensures rounded corners apply to table content */
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
         }
         th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color); /* Use variable for consistency */
+            border-bottom: 1px solid var(--border-color);
             color: var(--text-light);
         }
         th {
-            background-color: var(--button-bg); /* Use variable for consistency */
+            background-color: var(--button-bg);
             color: var(--text-white);
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
         tr:nth-child(even) {
-            background-color: #2a2a4a; /* Alternate row background (use direct color for consistency with original) */
+            background-color: #2a2a4a;
         }
         tr:hover {
-            background-color: var(--button-hover-bg); /* Use variable for consistency */
+            background-color: var(--button-hover-bg);
         }
         td a {
             color: var(--link-color);
@@ -254,16 +254,16 @@
             color: var(--text-light);
         }
         /* Adjustments for action buttons below h1 in vessel_list */
-        .container p {
-            text-align: center; /* Center the buttons */
+        .action-buttons-container {
+            text-align: center;
             margin-bottom: 20px;
         }
-        .container p .action-link-button {
-            margin: 5px; /* Add some margin around buttons for spacing */
+        .action-buttons-container .action-link-button {
+            margin: 5px;
         }
         /* Style for delete buttons in table cells */
         .delete-button {
-            background-color: var(--messages-error); /* Red for delete */
+            background-color: var(--messages-error);
             padding: 6px 12px;
             border-radius: 4px;
             color: var(--text-white);
@@ -274,14 +274,90 @@
             transition: background-color 0.2s ease;
         }
         .delete-button:hover {
-            background-color: #c82333; /* Darker red on hover */
+            background-color: #c82333;
         }
     </style>
     <script>
-        function confirmDelete(url) {
-            if (confirm("Are you sure you want to delete this record? This action cannot be undone.")) {
-                window.location.href = url;
+        function showCustomConfirm(message, onConfirm) {
+            const existingModal = document.getElementById('customConfirmModal');
+            if (existingModal) {
+                existingModal.remove();
             }
+
+            const modalHtml = `
+                <div id="customConfirmModal" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                ">
+                    <div style="
+                        background: var(--card-bg);
+                        padding: 25px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+                        text-align: center;
+                        color: var(--text-light);
+                        max-width: 400px;
+                        width: 90%;
+                        border: 1px solid var(--border-color);
+                    ">
+                        <p style="margin-bottom: 20px; font-size: 1.1em;">${message}</p>
+                        <button id="confirmYes" style="
+                            background-color: var(--messages-error);
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin-right: 15px;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">Yes</button>
+                        <button id="confirmNo" style="
+                            background-color: var(--button-bg);
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">No</button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            document.getElementById('confirmYes').onclick = () => {
+                onConfirm();
+                document.getElementById('customConfirmModal').remove();
+            };
+
+            document.getElementById('confirmNo').onclick = () => {
+                document.getElementById('customConfirmModal').remove();
+            };
+        }
+
+        function confirmDeleteVessel(id) {
+            showCustomConfirm("Are you sure you want to delete this vessel? This action cannot be undone if there are crew members assigned to it.", function() {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = "{% url 'vessel_delete' pk=0 %}".replace('0', id);
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = '{{ csrf_token }}';
+                form.appendChild(csrfInput);
+                document.body.appendChild(form);
+                form.submit();
+            });
         }
     </script>
 </head>
@@ -301,7 +377,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">All Registered Vessels</p> {# Subtitle for Vessels List #}
+            <p class="header-subtitle">All Registered Vessels</p>
         </div>
     </div>
 
@@ -317,9 +393,11 @@
         <div class="container">
             <h1>Vessels Roster</h1>
             {% if request.user.is_staff %}
-                <p>
+                <div class="action-buttons-container">
                     <a href="{% url 'vessel_create' %}" class="action-link-button">+ Add New Vessel</a>
-                </p>
+                    <a href="{% url 'import_vessel_csv' %}" class="action-link-button">Import Vessels (CSV)</a>
+                    <a href="{% url 'export_vessel_csv' %}" class="action-link-button">Export Vessels (CSV)</a>
+                </div>
             {% endif %}
 
             {% if vessels %}
@@ -332,7 +410,7 @@
                             <th>Type</th>
                             <th>Principal</th>
                             <th>Details</th>
-                            <th>Delete</th> {# New Delete Column #}
+                            <th>Delete</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -350,7 +428,7 @@
                             <td><a href="{% url 'vessel_detail' pk=vessel.id %}">View</a></td>
                             <td>
                                 {% if request.user.is_staff %}
-                                <button class="delete-button" onclick="confirmDelete('{% url 'vessel_delete' pk=vessel.id %}')">Delete</button>
+                                <button class="delete-button" onclick="confirmDeleteVessel({{ vessel.id }})">Delete</button>
                                 {% else %}
                                 N/A
                                 {% endif %}
@@ -362,14 +440,13 @@
         {% else %}
             <p class="no-data">No vessels found.</p>
         {% endif %}
+        
     </div>
 </div>
 
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
         {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}

@@ -213,7 +213,6 @@
         }
 
         /* Styles specific to Vessel Detail page */
-        /* Overriding common container style for vessel_detail specifically if needed */
         .profile-container { max-width: 800px; }
         .detail-section h2 {
             border-bottom: 1px solid var(--border-color);
@@ -258,7 +257,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Vessel Details</p> {# Subtitle for Vessel Details #}
+            <p class="header-subtitle">Vessel Details</p>
         </div>
     </div>
 
@@ -316,9 +315,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

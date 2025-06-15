@@ -1,0 +1,162 @@
+Comprehensive Crew Management System: Project Status Update
+
+Objective:
+To create a comprehensive, cloud-based software tool for a manning agency to efficiently manage crew members supplied to various principals (ship owners/operators). The system aims to handle detailed personnel records, certification management, vessel crew distribution, and personnel-related financials, with advanced notifications, secure admin/user roles, and a modern, user-friendly interface.
+
+Core Users:
+
+Manning Agency Staff: Managers, administrative personnel (with varying access levels).
+
+Crew Members: Seafarers themselves (for viewing personal profiles/documents).
+
+I. Implemented Features & Functionality:
+
+The core web application, deployed on Render.com, has seen significant development and now includes robust functionality across several modules:
+
+Core Django Setup & Deployment:
+
+Basic Django project and app structure (cms_project, crew_management, users).
+
+Database configuration (SQLite for local development, PostgreSQL for Render.com).
+
+Successful deployment on Render.com with continuous integration from GitHub.
+
+settings.py is configured to dynamically handle environment-specific settings (DEBUG mode, ALLOWED_HOSTS, static/media file paths) for both local development and Render.com.
+
+User Authentication & Authorization:
+
+Custom login and logout pages are fully functional.
+
+Role-Based Access Control is implemented:
+
+Admin/Staff Users: Have full access to all management functionalities (CRUD operations across all modules).
+
+Crew Members: Upon login, are redirected to their own profile. They can only view/edit their own linked data and are restricted from accessing other staff-only sections.
+
+Robust handling of CSRF (Cross-Site Request Forgery) protection for all form submissions.
+
+Global Branding & User Interface (UI):
+
+Consistent Corporate Branding: Every page (Dashboard, Lists, Forms, Details) now features:
+
+Your MM White Logo.png (Mackinnon Mackenzie Logo) prominently displayed.
+
+The full agency name: "Mackinnon Mackenzie & Co. of Pakistan (Private) Limited".
+
+Dynamic "Hello, [Username]! Logout" functionality at the top right.
+
+A consistent "Copyright Arif Aziz June 2025" footer with a "Back to Dashboard" link.
+
+Dark Theme Consistency: All pages adhere to the established dark theme (dark backgrounds, light text, vibrant green links/buttons).
+
+Responsive Design Principles: Layouts are designed to be responsive, adapting to different screen sizes (mobile, tablet, desktop) using CSS techniques.
+
+Module-Specific Functionality (CRUD Operations & Views):
+
+Dashboard (/):
+
+Provides an overview of key metrics (Total Crew, Crew by Status).
+
+Displays Document Expiry Alerts (expiring soon, expired documents).
+
+Shows Upcoming Crew Changes (sign-offs).
+
+Financial Snapshot is currently a placeholder.
+
+Layout now features cards arranged in a horizontal grid for better space utilization.
+
+Crew Management (/crew/list/, /crew/add/, /crew/<pk>/, /crew/<pk>/edit/):
+
+Crew Roster List: Displays all crew members, with customizable columns.
+
+Add/Edit Crew Member: Comprehensive forms for creating and updating detailed personnel records (personal, contact, employment, bank, working gear details).
+
+Successfully fixed IntegrityError by ensuring the joined_in_company field is always present and handled correctly in forms.
+
+All date input fields (input type="date") now display calendar pickers.
+
+Calendar picker icons are now visible and contrasted against the dark theme.
+
+Crew Profile Detail: Detailed view of a single crew member's complete profile.
+
+Delete Functionality: A "Delete" button is present on the Crew Roster list, with JavaScript confirmation and staff-only authorization.
+
+CSV Import/Export: Functionality to import new/update existing crew data from CSV and export existing crew data to CSV.
+
+Principal Management (/principals/list/, /principals/add/, /principals/<pk>/, /principals/<pk>/edit/):
+
+List, Detail, Add (form), and Edit (form) pages for managing principals.
+
+"Delete" button with confirmation and staff-only authorization implemented on the Principal List page.
+
+Vessel Management (/vessels/list/, /vessels/add/, /vessels/<pk>/, /vessels/<pk>/edit/):
+
+List, Detail, Add (form), and Edit (form) pages for managing vessels.
+
+"Delete" button with confirmation and staff-only authorization implemented on the Vessel List page. Includes a check to prevent deletion if crew members are assigned.
+
+Document Management (/crew/<pk>/documents/, /crew/<pk>/documents/add/, /documents/<pk>/, /documents/<pk>/edit/):
+
+List, Detail, Add (form), and Edit (form) pages for managing documents linked to a specific crew member.
+
+Includes file uploads and displays document expiry status.
+
+"Delete" button with confirmation and staff/owner authorization implemented on the Document List page.
+
+Fixed Layout: Corrected table column stretching and alignment issues to ensure headings and data align properly, matching the Crew Roster's clean appearance.
+
+Experience History Management (/crew/<pk>/experience/, etc.):
+
+List, Detail, Add (form), and Edit (form) pages for tracking sea service history per crew member.
+
+Next of Kin Management (/crew/<pk>/nextofkin/, etc.):
+
+List, Detail, Add (form), and Edit (form) pages for managing family/next of kin records per crew member.
+
+Communication Log Management (/crew/<pk>/logs/, etc.):
+
+List, Detail, Add (form), and Edit (form) pages for logging communications per crew member.
+
+Professional Reference Management (/crew/<pk>/references/, etc.):
+
+List, Detail, Add (form), and Edit (form) pages for managing professional references per crew member.
+
+Appraisal Management (/crew/<pk>/appraisals/, etc.):
+
+List, Detail, Add (form), and Edit (form) pages for managing appraisal records per crew member.
+
+II. Pending / Future Features:
+
+Financial Management (Full Implementation):
+
+Currently a placeholder on the Dashboard.
+
+Requires detailed implementation of models (Monthly Allotments, Retirement Dues, Financial Transactions) and their associated CRUD interfaces.
+
+Development of a dedicated Financial Overview Dashboard and specific financial reports.
+
+Advanced Notifications & Alerts:
+
+Beyond current dashboard display, implementation of email reminders for document expiries, sign-offs, and a comprehensive in-app notification system.
+
+Advanced Reporting & Export:
+
+Generation of structured, formatted reports (e.g., PDF generation for crew summaries, detailed financial statements) beyond simple CSV export.
+
+AI-Powered Features (Long-term Vision):
+
+AI-powered Crew Change Planning suggestions.
+
+Advanced Analytics tools.
+
+Compliance Monitoring against maritime regulations.
+
+Additional Modules:
+
+Crew Training Module.
+
+Integration Capabilities with external HR/payroll systems.
+
+Further Mobile Responsiveness Optimization (though current CSS provides good baseline).
+
+This summary reflects the current comprehensive state of your Crew Management System's web application.

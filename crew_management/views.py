@@ -1,264 +1,399 @@
-import csv # For CSV handling
-import io
-from django.http import HttpResponse
+# crew_management/views.py
 
-from django.shortcuts import render, get_object_or_404, Http404, redirect
-from .models import CrewMember, Document, Principal, Vessel, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal
-from django.db.models import Count
-from django.utils import timezone
-from datetime import timedelta
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.http import HttpResponse
+from django.db import models
+import csv
+import io
+import datetime
+from django.utils import timezone
 
-from crew_management.models import CrewMember
-from .forms import CrewMemberProfileForm, PrincipalForm, VesselForm, DocumentForm, ExperienceHistoryForm, NextOfKinForm, CommunicationLogForm, ProfessionalReferenceForm, AppraisalForm
+# Corrected: Import User from django.contrib.auth.models
+from django.contrib.auth.models import User
 
+# Import your models based on the provided models.py
+from .models import (
+    CrewMember, Principal, Vessel, Document,
+    ExperienceHistory, NextOfKin, CommunicationLog,
+    ProfessionalReference, Appraisal
+)
+
+# Import your forms (from forms.py)
+from .forms import (
+    CrewMemberProfileForm, PrincipalForm, VesselForm, DocumentForm,
+    ExperienceHistoryForm, NextOfKinForm, CommunicationLogForm,
+    ProfessionalReferenceForm, AppraisalForm
+)
+
+# Helper function to check if user is staff
+def is_staff(user):
+    return user.is_staff
+
+def login_view(request):
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            auth_login(request, user)
+            messages.success(request, f"Welcome, {user.username}!")
+
+            if user.is_staff:
+                return redirect('dashboard')
+            else:
+                try:
+                    crew_profile = CrewMember.objects.get(user=user)
+                    return redirect('crew_profile_detail', pk=crew_profile.pk)
+                except CrewMember.DoesNotExist:
+                    messages.warning(request, "Your user account is not linked to a crew profile. Please contact support.")
+                    auth_logout(request)
+                    return redirect('login')
+        else:
+            messages.error(request, "Invalid username or password.")
+    else:
+        form = AuthenticationForm()
+    return render(request, 'users/login.html', {'form': form})
+
+def logout_view(request):
+    auth_logout(request)
+    messages.info(request, "You have been logged out.")
+    return redirect('login')
+
+# --- Dashboard View ---
 @login_required
-def dashboard_view(request):
-    today = timezone.now().date()
-
-    # --- Crew Overview ---
+def dashboard(request):
     total_crew = CrewMember.objects.count()
-    crew_by_status = CrewMember.objects.values('crew_status').annotate(count=Count('crew_status'))
+    crew_by_status_query = CrewMember.objects.values('crew_status').annotate(count=models.Count('crew_status'))
+    crew_status_counts = {item['crew_status']: item['count'] for item in crew_by_status_query}
 
-    # Convert queryset result into a more friendly dictionary
-    crew_status_counts = {item['crew_status']: item['count'] for item in crew_by_status}
+    today = datetime.date.today()
+    three_months_from_now = today + datetime.timedelta(days=90)
+    six_months_from_now = today + datetime.timedelta(days=180)
 
-    # Example: Ensure all statuses are present, even if count is 0
-    all_status_choices = [choice[0] for choice in CrewMember.SEAFARER_STATUS_CHOICES]
-    for status in all_status_choices:
-        if status not in crew_status_counts:
-            crew_status_counts[status] = 0
 
-    # --- Document Expiry Alerts ---
-    # Documents expiring within the next 6 months (approx 180 days)
-    six_months_from_now = today + timedelta(days=180)
+    # Document Expiry Alerts (Expiring within 3 months)
     expiring_documents = Document.objects.filter(
-        expiry_date__gte=today, # Expiry date is today or in the future
-        expiry_date__lte=six_months_from_now # Expiry date is within the next 6 months
-    ).order_by('expiry_date')[:10] # Limit to top 10 most urgent for dashboard
+        expiry_date__gte=today,
+        expiry_date__lte=three_months_from_now
+    ).order_by('expiry_date')[:10]
 
-    # Documents that have already expired
-    expired_documents = Document.objects.filter(expiry_date__lt=today).order_by('-expiry_date')[:5] # Limit to 5 most recently expired
+    expired_documents = Document.objects.filter(
+        expiry_date__lt=today
+    ).order_by('-expiry_date')[:10]
 
-    # --- Upcoming Crew Changes (Sign-off alerts) ---
-    # Relieving plans within the next 2 months (approx 60 days)
-    two_months_from_now = today + timedelta(days=60)
-    upcoming_signoffs = CrewMember.objects.filter(
+    # Upcoming Crew Changes (based on relieving_plan_date from CrewMember, next 6 months)
+    upcoming_sign_offs = CrewMember.objects.filter(
         relieving_plan_date__gte=today,
-        relieving_plan_date__lte=two_months_from_now
-    ).order_by('relieving_plan_date')[:10] # Limit to top 10
-
-    # --- Financial Snapshot (Placeholder for now) ---
-    # Once you build detailed financial models (e.g., Allotment, RetirementDues),
-    # you'd query them here. For now, we can use simple counts or mock values.
-    # Example: Counting crew members with a 'principal' assigned
-    crew_with_principal = CrewMember.objects.filter(principal__isnull=False).count()
-    # total_monthly_allotments = YourAllotmentModel.objects.aggregate(Sum('amount'))['amount__sum'] or 0
-    # pending_retirement_dues = YourRetirementDuesModel.objects.filter(is_paid=False).aggregate(Sum('amount'))['amount__sum'] or 0
-
+        relieving_plan_date__lte=six_months_from_now
+    ).order_by('relieving_plan_date')[:10]
 
     context = {
-        # Crew Overview
         'total_crew': total_crew,
         'crew_status_counts': crew_status_counts,
-
-        # Document Alerts
         'expiring_documents': expiring_documents,
         'expired_documents': expired_documents,
-
-        # Crew Changes
-        'upcoming_signoffs': upcoming_signoffs,
-
-        # Financial Snapshot (placeholders)
-        'financial_summary_placeholder': f"Financial data will go here. {crew_with_principal} crew members have a principal assigned.",
+        'upcoming_sign_offs': upcoming_sign_offs,
+        'financial_summary_placeholder': 'Financial snapshot data will appear here.',
     }
     return render(request, 'crew_management/dashboard.html', context)
 
+# --- Crew Management Views ---
 
 @login_required
 def crew_list(request):
-    # --- Authorization Logic for Crew List ---
-    if not request.user.is_staff:
-        # If the user is NOT staff, they are not allowed to view the full list.
-        # Raise a 404 (Page Not Found) or redirect them.
-        raise Http404("You are not authorized to view the full crew roster.")
-        # Alternatively, you could redirect:
-        # messages.error(request, "You do not have permission to view the full crew roster.")
-        # return redirect('dashboard') # or their own profile page
-
     crew_members = CrewMember.objects.all().order_by('first_name', 'last_name')
+    return render(request, 'crew_management/crew_list.html', {'crew_members': crew_members})
+
+@login_required
+@user_passes_test(is_staff)
+def crew_create(request):
+    if request.method == 'POST':
+        form = CrewMemberProfileForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "New Crew Member added successfully!")
+            return redirect('crew_list')
+        else:
+            messages.error(request, "Error adding crew member. Please check the form.")
+    else:
+        form = CrewMemberProfileForm()
 
     context = {
-        'crew_members': crew_members,
+        'form': form,
+        'title': "Add New Crew Member",
+        'button_text': "Add Crew Member",
     }
-    return render(request, 'crew_management/crew_list.html', context)
-
+    return render(request, 'crew_management/crew_create.html', context)
 
 @login_required
 def crew_profile_detail(request, pk):
     crew_member = get_object_or_404(CrewMember, pk=pk)
-
-    # --- Authorization Logic ---
-    # If the logged-in user is NOT staff, they can only view their OWN profile.
-    if not request.user.is_staff:
-        # Check if the logged-in user is the one linked to this CrewMember profile
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view this profile.")
-    # --- End Authorization Logic ---
-
-    context = {
-        'crew': crew_member,
-    }
-    return render(request, 'crew_management/crew_profile_detail.html', context)
-
+    # Check if the logged-in user is staff OR if their user object matches the crew_member's linked user.
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this profile.")
+        return redirect('dashboard')
+    return render(request, 'crew_management/crew_profile_detail.html', {'crew_member': crew_member})
 
 @login_required
+@user_passes_test(is_staff)
 def crew_profile_edit(request, pk):
     crew_member = get_object_or_404(CrewMember, pk=pk)
-
-    # --- Authorization for Editing ---
-    # A staff user can edit any profile.
-    # A non-staff user (crew) can ONLY edit their own profile.
-    if not request.user.is_staff:
-        if not request.user == crew_member.user: # Check if logged-in user is the one linked to this profile
-            raise Http404("You are not authorized to edit this profile.")
-    # --- End Authorization ---
-
     if request.method == 'POST':
-        # Populate the form with submitted data AND the existing instance
-        # request.FILES is needed for file/image uploads
         form = CrewMemberProfileForm(request.POST, request.FILES, instance=crew_member)
         if form.is_valid():
-            form.save() # Saves the changes to the database
-            messages.success(request, "Your profile has been updated successfully!")
-            # Redirect to the profile detail page after successful update
+            form.save()
+            messages.success(request, f"Profile for {crew_member.first_name} {crew_member.last_name} updated successfully!")
             return redirect('crew_profile_detail', pk=crew_member.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Please correct the errors in the form.")
     else:
-        # For a GET request, create a form instance pre-filled with existing data
         form = CrewMemberProfileForm(instance=crew_member)
 
     context = {
-        'crew': crew_member, # Still pass the crew member object for template context
+        'crew_member': crew_member,
         'form': form,
+        'title': f"Edit Profile for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Save Changes",
     }
     return render(request, 'crew_management/crew_profile_edit.html', context)
 
 
 @login_required
-def crew_create(request):
-    # --- Authorization: Only staff users can create new crew members ---
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to create new crew members.")
-    # --- End Authorization ---
-
-    if request.method == 'POST':
-        # Create a form instance from POST data, including files
-        form = CrewMemberProfileForm(request.POST, request.FILES)
-        if form.is_valid():
-            # Save the new CrewMember instance
-            new_crew_member = form.save()
-            messages.success(request, f"Crew Member '{new_crew_member.first_name} {new_crew_member.last_name}' added successfully!")
-            # Redirect to the detail page of the newly created crew member
-            return redirect('crew_profile_detail', pk=new_crew_member.pk)
-        else:
-            messages.error(request, "Please correct the errors below.")
-    else:
-        # For a GET request, display an empty form
-        form = CrewMemberProfileForm()
-
-    context = {
-        'form': form,
-        'is_create_page': True, # A flag for the template to know it's a create page
-    }
-    return render(request, 'crew_management/crew_create.html', context)
-
-
-@login_required
+@user_passes_test(is_staff)
 def crew_delete(request, pk):
-    """
-    Handles the deletion of a CrewMember record.
-    Only accessible by staff users.
-    Deletes the CrewMember and any related records that are set to CASCADE deletion.
-    """
     crew_member = get_object_or_404(CrewMember, pk=pk)
-
-    # Authorization: Only staff users can delete crew members
-    if not request.user.is_staff:
-        messages.error(request, "You are not authorized to delete crew members.")
-        # Redirect to their own profile if unauthorized, or a generic unauthorized page
-        if request.user.is_authenticated and hasattr(request.user, 'crew_profile') and request.user.crew_profile:
-             return redirect('crew_profile_detail', pk=request.user.crew_profile.pk)
-        return redirect('dashboard') # Fallback for unauthorized non-staff
-
-    if request.method == 'GET': # Deletion triggered via a GET request from the button click
-        # In a real application, a POST request with CSRF token is safer for deletion.
-        # For this simple example, we're proceeding with GET as requested.
-        try:
-            crew_member.delete()
-            messages.success(request, f"Crew Member '{crew_member.first_name} {crew_member.last_name}' (ID: {pk}) has been successfully deleted.")
-        except Exception as e:
-            messages.error(request, f"Error deleting Crew Member '{crew_member.first_name} {crew_member.last_name}': {e}")
-
-    return redirect('crew_list') # Redirect back to the crew list after deletion attempt
+    # Allowing GET for now to match current JS behavior, but POST is preferred for deletions.
+    if request.method == 'POST' or request.method == 'GET':
+        crew_member.delete()
+        messages.success(request, f"Crew member '{crew_member.first_name} {crew_member.last_name}' deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request. Please confirm deletion via the provided button/form.")
+    return redirect('crew_list')
 
 
 @login_required
-def export_crew_csv(request):
-    # --- Authorization: Only staff users can export data ---
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to export data.")
-    # --- End Authorization ---
+@user_passes_test(is_staff)
+def import_crew_csv(request):
+    if request.method == 'POST':
+        if 'csv_file' in request.FILES:
+            csv_file = request.FILES['csv_file']
+            if not csv_file.name.endswith('.csv'):
+                messages.error(request, 'This is not a CSV file. Please upload a CSV file.')
+                return redirect('import_crew_csv')
 
-    # Create the HttpResponse object with the appropriate CSV header.
+            data_set = csv_file.read().decode('UTF-8')
+            io_string = io.StringIO(data_set)
+            try:
+                header = next(io_string)
+            except StopIteration:
+                messages.error(request, 'CSV file is empty.')
+                return redirect('import_crew_csv')
+
+            reader = csv.reader(io_string, delimiter=',')
+
+            imported_count = 0
+            updated_count = 0
+            errors = []
+
+            def parse_date_safe(date_str, field_name, row_num):
+                if date_str:
+                    try:
+                        return datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        try:
+                            return datetime.datetime.strptime(date_str, '%d-%m-%Y').date()
+                        except ValueError:
+                            errors.append(f"Row {row_num}: Invalid '{field_name}' date format ('{date_str}'). Expected YEAR-MM-DD or DD-MM-YYYY.")
+                            return None
+                return None
+
+            expected_min_columns = 43
+
+            for row_num, row in enumerate(reader, start=2):
+                if not row or not row[0].strip():
+                    if row and not row[0].strip():
+                         errors.append(f"Row {row_num}: Seafarer Code is missing. Skipping row.")
+                    continue
+
+                if len(row) < expected_min_columns:
+                    errors.append(f"Row {row_num}: Not enough columns ({len(row)} provided, at least {expected_min_columns} expected). Skipping row.")
+                    continue
+
+                try:
+                    seafarer_code = row[0].strip()
+                    if not seafarer_code:
+                        errors.append(f"Row {row_num}: Seafarer Code is missing. Skipping row.")
+                        continue
+
+                    principal_name = row[20].strip() if len(row) > 20 else ''
+                    principal_obj = None
+                    if principal_name:
+                        try:
+                            principal_obj = Principal.objects.get(name__iexact=principal_name)
+                        except Principal.DoesNotExist:
+                            errors.append(f"Row {row_num}: Principal '{principal_name}' not found for crew '{seafarer_code}'. Please import or create it first. Skipping crew member.")
+                            continue
+
+                    vessel_name = row[41].strip() if len(row) > 41 else ''
+                    vessel_obj = None
+                    if vessel_name:
+                        try:
+                            vessel_obj = Vessel.objects.get(name__iexact=vessel_name)
+                        except Vessel.DoesNotExist:
+                            errors.append(f"Row {row_num}: Vessel '{vessel_name}' not found for crew '{seafarer_code}'. Please import or create it first. Skipping crew member.")
+                            continue
+
+
+                    crew_member_data = {
+                        'first_name': row[1].strip(),
+                        'last_name': row[2].strip(),
+                        'father_name': row[3].strip(),
+                        'date_of_birth': parse_date_safe(row[4].strip(), 'date_of_birth', row_num),
+                        'place_of_birth': row[5].strip(),
+                        'marital_status': row[6].strip(),
+                        'nationality': row[7].strip(),
+                        'city_of_residence': row[8].strip(),
+                        'address_temporary': row[9].strip(),
+                        'address_permanent': row[10].strip(),
+                        'phone_no': row[11].strip(),
+                        'mobile_no': row[12].strip(),
+                        'email_id': row[13].strip(),
+                        'skype_id': row[14].strip(),
+                        'domestic_airport': row[15].strip(),
+                        'nearest_international_airport': row[16].strip(),
+                        'current_rank': row[17].strip(),
+                        'joined_in_company': parse_date_safe(row[18].strip(), 'joined_in_company', row_num),
+                        'joined_in_rank': row[19].strip(),
+                        'principal': principal_obj,
+                        'crew_status': row[21].strip(),
+                        'performance_rating': int(float(row[22].strip())) if row[22].strip() and row[22].strip().replace('.', '', 1).isdigit() else None,
+                        'relieving_plan_date': parse_date_safe(row[23].strip(), 'relieving_plan_date', row_num),
+                        'last_sign_off_date': parse_date_safe(row[24].strip(), 'last_sign_off_date', row_num),
+                        'ssb_no': row[25].strip(),
+                        'client_name_for_appraisal': row[26].strip(),
+                        'account_title': row[27].strip(),
+                        'account_no': row[28].strip(),
+                        'bank_name': row[29].strip(),
+                        'branch_name_address': row[30].strip(),
+                        'iban': row[31].strip(),
+                        'swift_code': row[32].strip(),
+                        'height_ft': float(row[33].strip()) if row[33].strip() else None,
+                        'weight_kg': float(row[34].strip()) if row[34].strip() else None,
+                        'collar_cm': float(row[35].strip()) if row[35].strip() else None,
+                        'chest_cm': float(row[36].strip()) if row[36].strip() else None,
+                        'waist_cm': float(row[37].strip()) if row[37].strip() else None,
+                        'shoes_cm': float(row[38].strip()) if row[38].strip() else None,
+                        'cap_cm': float(row[39].strip()) if row[39].strip() else None,
+                        'inseam_cm': float(row[40].strip()) if row[40].strip() else None,
+                        'current_vessel': vessel_obj,
+                        'working_gear_remarks': row[42].strip() if len(row) > 42 else '',
+                    }
+
+                    for key in ['date_of_birth', 'joined_in_company', 'relieving_plan_date', 'last_sign_off_date']:
+                        if crew_member_data[key] is None:
+                            del crew_member_data[key]
+
+                    temp_form = CrewMemberProfileForm(crew_member_data)
+                    if temp_form.is_valid():
+                        crew_obj, created = CrewMember.objects.update_or_create(
+                            seafarer_code=seafarer_code,
+                            defaults=temp_form.cleaned_data
+                        )
+                        if created:
+                            imported_count += 1
+                        else:
+                            updated_count += 1
+                    else:
+                        error_messages = "; ".join([f"{k}: {', '.join(v)}" for k, v in temp_form.errors.items()])
+                        errors.append(f"Row {row_num}: Validation error for '{seafarer_code}': {error_messages}. Row content: {row[:5]}...")
+
+
+                except IndexError:
+                    errors.append(f"Row {row_num}: CSV row has fewer columns than expected or columns are out of order. Please check the template. Row content: {row}")
+                except ValueError as ve:
+                    errors.append(f"Row {row_num}: Data type conversion error for '{seafarer_code}': {ve}. Ensure numeric fields are numbers and dates are valid. Row content: {row[:5]}...")
+                except Exception as e:
+                    errors.append(f"Row {row_num}: Unexpected error processing row for '{seafarer_code}': {e}. Row content: {row[:5]}...")
+
+            if imported_count > 0:
+                messages.success(request, f'{imported_count} new crew members imported successfully!')
+            if updated_count > 0:
+                messages.info(request, f'{updated_count} existing crew members updated successfully!')
+            if errors:
+                display_errors = errors[:5]
+                for error in display_errors:
+                    messages.error(request, error)
+                if len(errors) > 5:
+                    messages.error(request, f'And {len(errors) - 5} more errors. Check your CSV file for details.')
+                messages.warning(request, f'Total issues encountered: {len(errors)}.')
+
+            return redirect('crew_list')
+
+        else:
+            messages.error(request, 'No file uploaded.')
+            return redirect('import_crew_csv')
+    return render(request, 'crew_management/import_crew_csv.html')
+
+@login_required
+@user_passes_test(is_staff)
+def export_crew_csv(request):
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="crew_members_export.csv"'
+    response['Content-Disposition'] = 'attachment; filename="crew_members_export_' + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + '.csv"'
 
     writer = csv.writer(response)
-
-    # Define the header row based on your CrewMember model fields
-    # This should match the columns you want in your export, similar to your Excel template.
-    # You'll need to manually list them here to ensure order and readability.
     writer.writerow([
-        'ID', 'Seafarer Code', 'First Name', 'Last Name', 'Father Name', 
-        'Date of Birth', 'Place of Birth', 'Marital Status', 'Nationality', 'City of Residence',
-        'Address (Temporary)', 'Address (Permanent)', 'Phone No.', 'Mobile No.', 'Email ID', 'Skype ID',
-        'Domestic Airport', 'Nearest International Airport', 'Current Rank', 'Date Joined Company',
-        'Rank when First Joined', 'Principal', 'Crew Status', 'Performance Rating', 'Projected Next Sign-off Date',
-        'Last Sign-off Date', 'Current Vessel', 'SSB No.', 'Client Name (for appraisal)',
-        'Account Title', 'Account No.', 'Bank Name', 'Branch Name & Address', 'IBAN', 'SWIFT Code',
-        'Height (ft)', 'Weight (kg)', 'Collar (cm)', 'Chest (cm)', 'Waist (cm)', 'Shoes (cm)',
-        'Cap (cm)', 'Inseam (cm)', 'Working Gear Remarks'
-        # Note: File fields (profile_picture, blank_cheque_leaf_copy) are not directly exported as content,
-        # but you could export their paths if needed.
-        # Relationship fields (user) are also not exported directly as object, but as their name/ID
+        'seafarer_code', 'first_name', 'last_name', 'father_name', 'date_of_birth',
+        'place_of_birth', 'marital_status', 'nationality', 'city_of_residence',
+        'address_temporary', 'address_permanent', 'phone_no', 'mobile_no',
+        'email_id', 'skype_id', 'domestic_airport', 'nearest_international_airport',
+        'current_rank', 'joined_in_company', 'joined_in_rank', 'principal_name',
+        'crew_status', 'performance_rating', 'relieving_plan_date', 'last_sign_off_date',
+        'ssb_no', 'client_name_for_appraisal',
+        'account_title', 'account_no', 'bank_name', 'branch_name_address', 'iban', 'swift_code',
+        'height_ft', 'weight_kg', 'collar_cm', 'chest_cm', 'waist_cm',
+        'shoes_cm', 'cap_cm', 'inseam_cm', 'current_vessel_name', 'working_gear_remarks'
     ])
 
-    # Query all CrewMember objects
-    crew_members = CrewMember.objects.all().order_by('id')
+    crew_members = CrewMember.objects.all().order_by('last_name', 'first_name')
 
-    # Write data rows
     for crew in crew_members:
-        # For relationship fields (Principal, Vessel), get their names or unique identifiers
-        principal_name = crew.principal.name if crew.principal else ''
-        current_vessel_name = crew.current_vessel.name if crew.current_vessel else ''
-
         writer.writerow([
-            crew.id, crew.seafarer_code, crew.first_name, crew.last_name, crew.father_name,
-            crew.date_of_birth.strftime('%Y-%m-%d') if crew.date_of_birth else '', # Format date
-            crew.place_of_birth, crew.marital_status, crew.nationality, crew.city_of_residence,
-            crew.address_temporary, crew.address_permanent, crew.phone_no, crew.mobile_no,
-            crew.email_id, crew.skype_id, crew.domestic_airport, crew.nearest_international_airport,
-            crew.current_rank, crew.joined_in_company.strftime('%Y-%m-%d') if crew.joined_in_company else '',
-            crew.joined_in_rank, principal_name, crew.crew_status,
-            crew.performance_rating if crew.performance_rating is not None else '', # Handle None for numbers
+            crew.seafarer_code,
+            crew.first_name,
+            crew.last_name,
+            crew.father_name,
+            crew.date_of_birth.strftime('%Y-%m-%d') if crew.date_of_birth else '',
+            crew.place_of_birth,
+            crew.marital_status,
+            crew.nationality,
+            crew.city_of_residence,
+            crew.address_temporary,
+            crew.address_permanent,
+            crew.phone_no,
+            crew.mobile_no,
+            crew.email_id,
+            crew.skype_id,
+            crew.domestic_airport,
+            crew.nearest_international_airport,
+            crew.current_rank,
+            crew.joined_in_company.strftime('%Y-%m-%d') if crew.joined_in_company else '',
+            crew.joined_in_rank,
+            crew.principal.name if crew.principal else '',
+            crew.crew_status,
+            crew.performance_rating if crew.performance_rating is not None else '',
             crew.relieving_plan_date.strftime('%Y-%m-%d') if crew.relieving_plan_date else '',
             crew.last_sign_off_date.strftime('%Y-%m-%d') if crew.last_sign_off_date else '',
-            current_vessel_name, crew.ssb_no, crew.client_name_for_appraisal,
-            crew.account_title, crew.account_no, crew.bank_name, crew.branch_name_address,
-            crew.iban, crew.swift_code,
+            crew.ssb_no,
+            crew.client_name_for_appraisal,
+            crew.account_title,
+            crew.account_no,
+            crew.bank_name,
+            crew.branch_name_address,
+            crew.iban,
+            crew.swift_code,
             crew.height_ft if crew.height_ft is not None else '',
             crew.weight_kg if crew.weight_kg is not None else '',
             crew.collar_cm if crew.collar_cm is not None else '',
@@ -267,275 +402,49 @@ def export_crew_csv(request):
             crew.shoes_cm if crew.shoes_cm is not None else '',
             crew.cap_cm if crew.cap_cm is not None else '',
             crew.inseam_cm if crew.inseam_cm is not None else '',
-            crew.working_gear_remarks
+            crew.current_vessel.name if crew.current_vessel else '',
+            crew.working_gear_remarks,
         ])
-
     return response
 
-
-@login_required
-def import_crew_csv(request):
-    # --- Authorization: Only staff users can import data ---
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to import data.")
-    # --- End Authorization ---
-
-    if request.method == 'POST':
-        if 'csv_file' not in request.FILES:
-            messages.error(request, "No file uploaded. Please select a CSV file.")
-            return redirect('import_crew_csv')
-
-        csv_file = request.FILES['csv_file']
-
-        # Check if it's a CSV file
-        if not csv_file.name.endswith('.csv'):
-            messages.error(request, "This is not a CSV file. Please upload a CSV file.")
-            return redirect('import_crew_csv')
-
-        # Read the CSV file content
-        data_set = csv_file.read().decode('UTF-8')
-        io_string = io.StringIO(data_set)
-        # Skip the header row
-        next(io_string)
-
-        imported_count = 0
-        updated_count = 0
-        skipped_count = 0
-        errors = []
-
-        # Use csv.reader to parse the CSV
-        for row in csv.reader(io_string, delimiter=','):
-            if not row: # Skip empty rows
-                skipped_count += 1
-                continue
-
-            # --- Map CSV columns to model fields ---
-            # IMPORTANT: Adjust these indices (e.g., row[0], row[1]) based on your Excel sheet's column order
-            # Refer to your "Excel Sheet 1: Crew Members (for CrewMember Model)" blueprint
-            try:
-                # Example mapping (adjust indices to match your CSV columns)
-                # This is a sample mapping, replace with your actual column order from Excel
-                seafarer_code = row[1].strip() # Assuming Seafarer Code is in the first column
-                first_name = row[2].strip()
-                last_name = row[3].strip()
-                father_name = row[4].strip()
-                date_of_birth_str = row[5].strip()
-                place_of_birth = row[6].strip()
-                marital_status = row[7].strip()
-                nationality = row[8].strip()
-                city_of_residence = row[9].strip()
-                address_temporary = row[10].strip()
-                address_permanent = row[11].strip()
-                phone_no = row[12].strip()
-                mobile_no = row[13].strip()
-                email_id = row[14].strip()
-                skype_id = row[15].strip()
-                domestic_airport = row[16].strip()
-                nearest_international_airport = row[17].strip()
-                current_rank = row[18].strip()
-                joined_in_company_str = row[19].strip()
-                joined_in_rank = row[20].strip()
-                principal_name = row[21].strip() # Principal Name for lookup
-                crew_status = row[22].strip()
-                performance_rating_str = row[23].strip()
-                relieving_plan_date_str = row[24].strip()
-                last_sign_off_date_str = row[25].strip()
-                current_vessel_name = row[26].strip() # Current Vessel Name for lookup
-                ssb_no = row[27].strip()
-                client_name_for_appraisal = row[28].strip()
-                account_title = row[29].strip()
-                account_no = row[30].strip()
-                bank_name = row[31].strip()
-                branch_name_address = row[32].strip()
-                iban = row[33].strip()
-                swift_code = row[34].strip()
-                height_ft_str = row[35].strip()
-                weight_kg_str = row[36].strip()
-                collar_cm_str = row[37].strip()
-                chest_cm_str = row[38].strip()
-                waist_cm_str = row[39].strip()
-                shoes_cm_str = row[40].strip()
-                cap_cm_str = row[41].strip()
-                inseam_cm_str = row[42].strip()
-                working_gear_remarks = row[43].strip()
-
-                # Handle dates (YYYY-MM-DD format)
-                date_of_birth = None
-                if date_of_birth_str:
-                    date_of_birth = timezone.datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
-                joined_in_company = None
-                if joined_in_company_str:
-                    joined_in_company = timezone.datetime.strptime(joined_in_company_str, '%Y-%m-%d').date()
-                relieving_plan_date = None
-                if relieving_plan_date_str:
-                    relieving_plan_date = timezone.datetime.strptime(relieving_plan_date_str, '%Y-%m-%d').date()
-                last_sign_off_date = None
-                if last_sign_off_date_str:
-                    last_sign_off_date = timezone.datetime.strptime(last_sign_off_date_str, '%Y-%m-%d').date()
-
-                # Handle numbers (convert empty strings to None for Decimal/Integer fields)
-                performance_rating = int(performance_rating_str) if performance_rating_str else None
-                height_ft = float(height_ft_str) if height_ft_str else None
-                weight_kg = float(weight_kg_str) if weight_kg_str else None
-                collar_cm = float(collar_cm_str) if collar_cm_str else None
-                chest_cm = float(chest_cm_str) if chest_cm_str else None
-                waist_cm = float(waist_cm_str) if waist_cm_str else None
-                shoes_cm = float(shoes_cm_str) if shoes_cm_str else None
-                cap_cm = float(cap_cm_str) if cap_cm_str else None
-                inseam_cm = float(inseam_cm_str) if inseam_cm_str else None
-
-                # Look up Principal and Vessel (by name/IMO for Principals/Vessels)
-                # IMPORTANT: Ensure Principals and Vessels are imported FIRST, or exist in DB.
-                principal_obj = None
-                if principal_name:
-                    try:
-                        principal_obj = Principal.objects.get(name__iexact=principal_name) # Case-insensitive lookup
-                    except Principal.DoesNotExist:
-                        errors.append(f"Row skipped (Seafarer: {seafarer_code}): Principal '{principal_name}' not found.")
-                        skipped_count += 1
-                        continue # Skip this row if principal not found
-
-                current_vessel_obj = None
-                if current_vessel_name:
-                    try:
-                        # Assuming vessel name is sufficient, or you could use IMO number
-                        current_vessel_obj = Vessel.objects.get(name__iexact=current_vessel_name)
-                    except Vessel.DoesNotExist:
-                        errors.append(f"Row skipped (Seafarer: {seafarer_code}): Vessel '{current_vessel_name}' not found.")
-                        skipped_count += 1
-                        continue # Skip this row if vessel not found
-
-                # Try to get existing CrewMember or create a new one
-                crew_member, created = CrewMember.objects.update_or_create(
-                    seafarer_code=seafarer_code, # Use seafarer_code as the unique identifier for update_or_create
-                    defaults={
-                        'first_name': first_name,
-                        'last_name': last_name,
-                        'father_name': father_name,
-                        'date_of_birth': date_of_birth,
-                        'place_of_birth': place_of_birth,
-                        'marital_status': marital_status,
-                        'nationality': nationality,
-                        'city_of_residence': city_of_residence,
-                        'address_temporary': address_temporary,
-                        'address_permanent': address_permanent,
-                        'phone_no': phone_no,
-                        'mobile_no': mobile_no,
-                        'email_id': email_id,
-                        'skype_id': skype_id,
-                        'domestic_airport': domestic_airport,
-                        'nearest_international_airport': nearest_international_airport,
-                        'current_rank': current_rank,
-                        'joined_in_company': joined_in_company,
-                        'joined_in_rank': joined_in_rank,
-                        'principal': principal_obj, # Assign the looked-up object
-                        'crew_status': crew_status,
-                        'performance_rating': performance_rating,
-                        'relieving_plan_date': relieving_plan_date,
-                        'last_sign_off_date': last_sign_off_date,
-                        'current_vessel': current_vessel_obj, # Assign the looked-up object
-                        'ssb_no': ssb_no,
-                        'client_name_for_appraisal': client_name_for_appraisal,
-                        'account_title': account_title,
-                        'account_no': account_no,
-                        'bank_name': bank_name,
-                        'branch_name_address': branch_name_address,
-                        'iban': iban,
-                        'swift_code': swift_code,
-                        'height_ft': height_ft,
-                        'weight_kg': weight_kg,
-                        'collar_cm': collar_cm,
-                        'chest_cm': chest_cm,
-                        'waist_cm': waist_cm,
-                        'shoes_cm': shoes_cm,
-                        'cap_cm': cap_cm,
-                        'inseam_cm': inseam_cm,
-                        'working_gear_remarks': working_gear_remarks
-                    }
-                )
-                if created:
-                    imported_count += 1
-                else:
-                    updated_count += 1
-
-            except Exception as e:
-                errors.append(f"Error importing row '{row}': {e}")
-                skipped_count += 1
-
-        if errors:
-            messages.error(request, f"Import finished with errors: {len(errors)} rows skipped. See details below.")
-            for err in errors[:5]: # Show first 5 errors on message
-                messages.error(request, err)
-            if len(errors) > 5:
-                messages.error(request, "And more errors...")
-
-        messages.success(request, f"Import complete: {imported_count} new crew members, {updated_count} updated, {skipped_count} skipped (including header).")
-        return redirect('import_crew_csv')
-
-    return render(request, 'crew_management/import_crew_csv.html')
-
-
 # --- Principal Management Views ---
+
 @login_required
 def principal_list(request):
-    # Only staff can view list of principals
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to view this page.")
-
     principals = Principal.objects.all().order_by('name')
-    context = {
-        'principals': principals
-    }
-    return render(request, 'crew_management/principal_list.html', context)
+    return render(request, 'crew_management/principal_list.html', {'principals': principals})
 
 @login_required
-def principal_detail(request, pk):
-    # Only staff can view principal details
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to view this page.")
-
-    principal = get_object_or_404(Principal, pk=pk)
-    # Optionally, get vessels associated with this principal
-    associated_vessels = principal.vessels.all() # Uses related_name defined in Vessel model
-
-    context = {
-        'principal': principal,
-        'associated_vessels': associated_vessels
-    }
-    return render(request, 'crew_management/principal_detail.html', context)
-
-@login_required
+@user_passes_test(is_staff)
 def principal_create(request):
-    # Only staff can create new principals
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to create principals.")
-
     if request.method == 'POST':
         form = PrincipalForm(request.POST)
         if form.is_valid():
-            new_principal = form.save()
-            messages.success(request, f"Principal '{new_principal.name}' added successfully!")
-            return redirect('principal_detail', pk=new_principal.pk)
+            form.save()
+            messages.success(request, "Principal added successfully!")
+            return redirect('principal_list')
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding principal. Please check the form.")
     else:
         form = PrincipalForm()
 
     context = {
         'form': form,
-        'title': 'Add New Principal',
-        'button_text': 'Add Principal'
+        'title': "Add New Principal",
+        'button_text': "Add Principal",
     }
     return render(request, 'crew_management/principal_form.html', context)
 
 @login_required
-def principal_edit(request, pk):
-    # Only staff can edit principals
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to edit principals.")
-
+def principal_detail(request, pk):
     principal = get_object_or_404(Principal, pk=pk)
+    associated_vessels = Vessel.objects.filter(associated_principal=principal).order_by('name')
+    return render(request, 'crew_management/principal_detail.html', {'principal': principal, 'associated_vessels': associated_vessels})
 
+@login_required
+@user_passes_test(is_staff)
+def principal_edit(request, pk):
+    principal = get_object_or_404(Principal, pk=pk)
     if request.method == 'POST':
         form = PrincipalForm(request.POST, instance=principal)
         if form.is_valid():
@@ -543,102 +452,186 @@ def principal_edit(request, pk):
             messages.success(request, f"Principal '{principal.name}' updated successfully!")
             return redirect('principal_detail', pk=principal.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating principal. Please check the form.")
     else:
         form = PrincipalForm(instance=principal)
 
     context = {
         'form': form,
-        'title': f'Edit Principal: {principal.name}',
-        'button_text': 'Save Changes',
-        'principal': principal # Pass principal object for back link
+        'principal': principal,
+        'title': f"Edit Principal: {principal.name}",
+        'button_text': "Save Changes",
     }
     return render(request, 'crew_management/principal_form.html', context)
 
 @login_required
+@user_passes_test(is_staff)
 def principal_delete(request, pk):
-    """
-    Handles the deletion of a Principal record.
-    Only accessible by staff users.
-    """
     principal = get_object_or_404(Principal, pk=pk)
+    if CrewMember.objects.filter(principal=principal).exists():
+        messages.error(request, f"Cannot delete Principal '{principal.name}' as there are crew members directly associated with it.")
+        return redirect('principal_list')
+    if Vessel.objects.filter(associated_principal=principal).exists():
+        messages.error(request, f"Cannot delete Principal '{principal.name}' as there are vessels associated with it.")
+        return redirect('principal_list')
 
-    # Authorization: Only staff users can delete principals
-    if not request.user.is_staff:
-        messages.error(request, "You are not authorized to delete principals.")
-        return redirect('principal_list') # Redirect back to the principals list
+    if request.method == 'POST' or request.method == 'GET':
+        principal.delete()
+        messages.success(request, f"Principal '{principal.name}' deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a GET or POST request. Please confirm deletion via the provided button/form.")
+    return redirect('principal_list')
 
-    if request.method == 'GET': # Deletion triggered via a GET request from the button click
-        try:
-            principal.delete()
-            messages.success(request, f"Principal '{principal.name}' (ID: {pk}) has been successfully deleted.")
-        except Exception as e:
-            messages.error(request, f"Error deleting Principal '{principal.name}': {e}")
+@login_required
+@user_passes_test(is_staff)
+def import_principal_csv(request):
+    if request.method == 'POST':
+        if 'csv_file' in request.FILES:
+            csv_file = request.FILES['csv_file']
+            if not csv_file.name.endswith('.csv'):
+                messages.error(request, 'This is not a CSV file. Please upload a CSV file.')
+                return redirect('import_principal_csv')
 
-    return redirect('principal_list') # Redirect back to the principals list after deletion attempt
+            data_set = csv_file.read().decode('UTF-8')
+            io_string = io.StringIO(data_set)
+            try:
+                header = next(io_string)
+            except StopIteration:
+                messages.error(request, 'CSV file is empty.')
+                return redirect('import_principal_csv')
 
+            reader = csv.reader(io_string, delimiter=',')
+
+            imported_count = 0
+            updated_count = 0
+            errors = []
+
+            for row_num, row in enumerate(reader, start=2):
+                if not row or not row[0].strip():
+                    if row and not row[0].strip():
+                        errors.append(f"Row {row_num}: Principal Name is missing. Skipping row.")
+                    continue
+
+                if len(row) < 1:
+                    errors.append(f"Row {row_num}: Not enough columns for Principal (at least 1 expected for name). Skipping row.")
+                    continue
+
+                try:
+                    principal_name = row[0].strip()
+
+                    contact_person = row[1].strip() if len(row) > 1 and row[1].strip() else None
+                    email = row[2].strip() if len(row) > 2 and row[2].strip() else None
+                    phone = row[3].strip() if len(row) > 3 and row[3].strip() else None
+                    address = row[4].strip() if len(row) > 4 and row[4].strip() else None
+                    remarks = row[5].strip() if len(row) > 5 and row[5].strip() else None
+
+
+                    principal_data = {
+                        'contact_person': contact_person,
+                        'email': email,
+                        'phone': phone,
+                        'address': address,
+                        'remarks': remarks,
+                    }
+
+                    temp_form = PrincipalForm(principal_data)
+                    if temp_form.is_valid():
+                        principal, created = Principal.objects.update_or_create(
+                            name=principal_name,
+                            defaults=temp_form.cleaned_data
+                        )
+                        if created:
+                            imported_count += 1
+                        else:
+                            updated_count += 1
+                    else:
+                        error_messages = "; ".join([f"{k}: {', '.join(v)}" for k, v in temp_form.errors.items()])
+                        errors.append(f"Row {row_num}: Validation error for '{principal_name}': {error_messages}. Row content: {row[:5]}...")
+
+
+                except Exception as e:
+                    errors.append(f'Row {row_num}: Error processing row for "{row[0].strip() if row else "N/A"}": {e}')
+
+            if imported_count > 0:
+                messages.success(request, f'{imported_count} new principals imported successfully!')
+            if updated_count > 0:
+                messages.info(request, f'{updated_count} existing principals updated successfully!')
+            if errors:
+                display_errors = errors[:5]
+                for error in display_errors:
+                    messages.error(request, error)
+                if len(errors) > 5:
+                    messages.error(request, f'And {len(errors) - 5} more errors. Check your CSV file for details.')
+                messages.warning(request, f'Total issues encountered: {len(errors)}.')
+
+            return redirect('principal_list')
+
+        else:
+            messages.error(request, 'No file uploaded.')
+            return redirect('import_principal_csv')
+    return render(request, 'crew_management/import_principal_csv.html')
+
+@login_required
+@user_passes_test(is_staff)
+def export_principal_csv(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="principals_export_' + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + '.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Name', 'Contact Person', 'Email', 'Phone', 'Address', 'Remarks'])
+
+    principals = Principal.objects.all().order_by('name')
+
+    for principal in principals:
+        writer.writerow([
+            principal.name,
+            principal.contact_person if principal.contact_person else '',
+            principal.email if principal.email else '',
+            principal.phone if principal.phone else '',
+            principal.address if principal.address else '',
+            principal.remarks if principal.remarks else '',
+        ])
+    return response
 
 # --- Vessel Management Views ---
+
 @login_required
 def vessel_list(request):
-    # Only staff can view list of vessels
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to view this page.")
-
     vessels = Vessel.objects.all().order_by('name')
-    context = {
-        'vessels': vessels
-    }
-    return render(request, 'crew_management/vessel_list.html', context)
+    return render(request, 'crew_management/vessel_list.html', {'vessels': vessels})
 
 @login_required
-def vessel_detail(request, pk):
-    # Only staff can view vessel details
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to view this page.")
-
-    vessel = get_object_or_404(Vessel, pk=pk)
-    # Optionally, get crew members currently on board this vessel
-    crew_onboard = vessel.current_crew.all() # Uses related_name defined in CrewMember model
-
-    context = {
-        'vessel': vessel,
-        'crew_onboard': crew_onboard
-    }
-    return render(request, 'crew_management/vessel_detail.html', context)
-
-@login_required
+@user_passes_test(is_staff)
 def vessel_create(request):
-    # Only staff can create new vessels
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to create vessels.")
-
     if request.method == 'POST':
         form = VesselForm(request.POST)
         if form.is_valid():
-            new_vessel = form.save()
-            messages.success(request, f"Vessel '{new_vessel.name}' added successfully!")
-            return redirect('vessel_detail', pk=new_vessel.pk)
+            form.save()
+            messages.success(request, "Vessel added successfully!")
+            return redirect('vessel_list')
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding vessel. Please check the form.")
     else:
         form = VesselForm()
 
     context = {
         'form': form,
-        'title': 'Add New Vessel',
-        'button_text': 'Add Vessel'
+        'title': "Add New Vessel",
+        'button_text': "Add Vessel",
     }
     return render(request, 'crew_management/vessel_form.html', context)
 
 @login_required
-def vessel_edit(request, pk):
-    # Only staff can edit vessels
-    if not request.user.is_staff:
-        raise Http404("You are not authorized to edit vessels.")
-
+def vessel_detail(request, pk):
     vessel = get_object_or_404(Vessel, pk=pk)
+    crew_onboard = CrewMember.objects.filter(current_vessel=vessel).order_by('last_name', 'first_name')
+    return render(request, 'crew_management/vessel_detail.html', {'vessel': vessel, 'crew_onboard': crew_onboard})
 
+
+@login_required
+@user_passes_test(is_staff)
+def vessel_edit(request, pk):
+    vessel = get_object_or_404(Vessel, pk=pk)
     if request.method == 'POST':
         form = VesselForm(request.POST, instance=vessel)
         if form.is_valid():
@@ -646,253 +639,301 @@ def vessel_edit(request, pk):
             messages.success(request, f"Vessel '{vessel.name}' updated successfully!")
             return redirect('vessel_detail', pk=vessel.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating vessel. Please check the form.")
     else:
         form = VesselForm(instance=vessel)
 
     context = {
         'form': form,
-        'title': f'Edit Vessel: {vessel.name}',
-        'button_text': 'Save Changes',
-        'vessel': vessel # Pass vessel object for back link
+        'vessel': vessel,
+        'title': f"Edit Vessel: {vessel.name}",
+        'button_text': "Save Changes",
     }
     return render(request, 'crew_management/vessel_form.html', context)
 
-# NEW: Vessel Delete View
+
 @login_required
+@user_passes_test(is_staff)
 def vessel_delete(request, pk):
-    """
-    Handles the deletion of a Vessel record.
-    Only accessible by staff users.
-    """
     vessel = get_object_or_404(Vessel, pk=pk)
+    if CrewMember.objects.filter(current_vessel=vessel).exists():
+        messages.error(request, f"Cannot delete vessel '{vessel.name}' as there are crew members assigned to it.")
+        return redirect('vessel_list')
 
-    # Authorization: Only staff users can delete vessels
-    if not request.user.is_staff:
-        messages.error(request, "You are not authorized to delete vessels.")
-        return redirect('vessel_list') # Redirect back to the vessels list
+    if request.method == 'POST' or request.method == 'GET':
+        vessel.delete()
+        messages.success(request, f"Vessel '{vessel.name}' deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request. Please confirm deletion via the provided button/form.")
+    return redirect('vessel_list')
 
-    if request.method == 'GET': # Deletion triggered via a GET request from the button click
-        try:
-            # Check for related objects (CrewMembers assigned to this vessel)
-            if vessel.current_crew.exists():
-                messages.error(request, f"Cannot delete Vessel '{vessel.name}' because it has associated crew members.")
-                return redirect('vessel_detail', pk=vessel.pk) # Redirect back to vessel detail if cannot delete
 
-            vessel.delete()
-            messages.success(request, f"Vessel '{vessel.name}' (ID: {pk}) has been successfully deleted.")
-        except Exception as e:
-            messages.error(request, f"Error deleting Vessel '{vessel.name}': {e}")
+@login_required
+@user_passes_test(is_staff)
+def import_vessel_csv(request):
+    if request.method == 'POST':
+        if 'csv_file' in request.FILES:
+            csv_file = request.FILES['csv_file']
+            if not csv_file.name.endswith('.csv'):
+                messages.error(request, 'This is not a CSV file. Please upload a CSV file.')
+                return redirect('import_vessel_csv')
 
-    return redirect('vessel_list') # Redirect back to the vessels list after deletion attempt
+            data_set = csv_file.read().decode('UTF-8')
+            io_string = io.StringIO(data_set)
+            try:
+                header = next(io_string)
+            except StopIteration:
+                messages.error(request, 'CSV file is empty.')
+                return redirect('import_vessel_csv')
 
+            reader = csv.reader(io_string, delimiter=',')
+
+            imported_count = 0
+            updated_count = 0
+            errors = []
+
+            for row_num, row in enumerate(reader, start=2):
+                if not row or not row[0].strip():
+                    if row and not row[0].strip():
+                        errors.append(f"Row {row_num}: Vessel Name is missing. Skipping row.")
+                    continue
+
+                if len(row) < 2:
+                    errors.append(f"Row {row_num}: Not enough columns for Vessel (at least 2 expected for name and IMO). Skipping row.")
+                    continue
+
+                try:
+                    vessel_name = row[0].strip()
+                    imo_number = row[1].strip()
+
+                    principal_name = row[4].strip() if len(row) > 4 and row[4].strip() else None
+                    principal_obj = None
+                    if principal_name:
+                        try:
+                            principal_obj = Principal.objects.get(name__iexact=principal_name)
+                        except Principal.DoesNotExist:
+                            errors.append(f"Row {row_num}: Principal '{principal_name}' not found for vessel '{vessel_name}'. Please import or create it first. Skipping vessel.")
+                            continue
+
+                    vessel_data = {
+                        'name': vessel_name,
+                        'imo_number': imo_number,
+                        'vessel_type': row[2].strip() if len(row) > 2 else '',
+                        'flag_state': row[3].strip() if len(row) > 3 else '',
+                        'associated_principal': principal_obj,
+                    }
+                    temp_form = VesselForm(vessel_data)
+                    if temp_form.is_valid():
+                        vessel, created = Vessel.objects.update_or_create(
+                            imo_number=imo_number,
+                            defaults=temp_form.cleaned_data
+                        )
+                        if created:
+                            imported_count += 1
+                        else:
+                            updated_count += 1
+                    else:
+                        error_messages = "; ".join([f"{k}: {', '.join(v)}" for k, v in temp_form.errors.items()])
+                        errors.append(f"Row {row_num}: Validation error for '{vessel_name}': {error_messages}. Row content: {row[:5]}...")
+
+
+                except Exception as e:
+                    errors.append(f'Row {row_num}: Error processing row for "{row[0].strip() if row else "N/A"}": {e}')
+
+            if imported_count > 0:
+                messages.success(request, f'{imported_count} new vessels imported successfully!')
+            if updated_count > 0:
+                messages.info(request, f'{updated_count} existing vessels updated successfully!')
+            if errors:
+                display_errors = errors[:5]
+                for error in display_errors:
+                    messages.error(request, error)
+                if len(errors) > 5:
+                    messages.error(request, f'And {len(errors) - 5} more errors. Check your CSV file for details.')
+                messages.warning(request, f'Total issues encountered: {len(errors)}.')
+
+            return redirect('vessel_list')
+
+        else:
+            messages.error(request, 'No file uploaded.')
+            return redirect('import_vessel_csv')
+    return render(request, 'crew_management/import_vessel_csv.html')
+
+@login_required
+@user_passes_test(is_staff)
+def export_vessel_csv(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="vessels_export_' + datetime.datetime.now().strftime("%Y%m%d%H%M%S") + '.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Name', 'IMO Number', 'Vessel Type', 'Flag State', 'Principal Name'])
+
+    vessels = Vessel.objects.all().order_by('name')
+
+    for vessel in vessels:
+        writer.writerow([
+            vessel.name,
+            vessel.imo_number if vessel.imo_number else '',
+            vessel.vessel_type if vessel.vessel_type else '',
+            vessel.flag_state if vessel.flag_state else '',
+            vessel.associated_principal.name if vessel.associated_principal else '',
+        ])
+    return response
 
 # --- Document Management Views ---
-@login_required
-def document_list_for_crew(request, crew_pk): # Takes crew_pk to list docs for a specific crew
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization: Staff can view all documents for any crew.
-    # Crew can only view documents for their own profile.
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view these documents.")
-
-    documents = Document.objects.filter(crew_member=crew_member).order_by('document_name')
-
-    context = {
-        'crew': crew_member,
-        'documents': documents
-    }
-    return render(request, 'crew_management/document_list_for_crew.html', context)
 
 @login_required
-def document_detail(request, pk): # Takes document pk
-    document = get_object_or_404(Document, pk=pk)
-
-    # Authorization: Staff can view any document.
-    # Crew can only view documents linked to their own profile.
-    if not request.user.is_staff:
-        if not request.user == document.crew_member.user:
-            raise Http404("You are not authorized to view this document.")
-
-    context = {
-        'document': document,
-        'crew': document.crew_member # Pass the related crew member for breadcrumbs/back links
-    }
-    return render(request, 'crew_management/document_detail.html', context)
+def crew_document_list(request, pk):
+    crew_member = get_object_or_404(CrewMember, pk=pk)
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view documents for this profile.")
+        return redirect('dashboard')
+    documents = Document.objects.filter(crew_member=crew_member).order_by('document_type', 'expiry_date')
+    # Corrected template path
+    return render(request, 'crew_management/document_list_for_crew.html', {'crew_member': crew_member, 'documents': documents})
 
 @login_required
-def document_create(request, crew_pk): # Takes crew_pk to link new doc to a specific crew
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization: Staff can add documents for any crew.
-    # Crew can only add documents for their own profile.
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to add documents for this profile.")
-
+@user_passes_test(is_staff)
+def crew_document_add(request, pk):
+    crew_member = get_object_or_404(CrewMember, pk=pk)
     if request.method == 'POST':
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
-            new_document = form.save(commit=False) # Create object but don't save to DB yet
-            new_document.crew_member = crew_member # Assign the correct crew member
-            new_document.save() # Now save to DB
-            messages.success(request, f"Document '{new_document.document_name}' added successfully for {crew_member.first_name}.")
-            return redirect('document_list_for_crew', crew_pk=crew_member.pk)
+            document = form.save(commit=False)
+            document.crew_member = crew_member
+            document.save()
+            messages.success(request, f"Document '{document.document_name}' added successfully for {crew_member.first_name}.")
+            return redirect('crew_document_list', pk=crew_member.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding document. Please check the form.")
     else:
         form = DocumentForm()
 
     context = {
         'form': form,
-        'crew': crew_member,
-        'title': f'Add New Document for {crew_member.first_name} {crew_member.last_name}',
-        'button_text': 'Add Document'
+        'crew_member': crew_member,
+        'title': f"Add Document for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Document",
     }
+    # Corrected template path
     return render(request, 'crew_management/document_form.html', context)
 
+
 @login_required
-def document_edit(request, pk): # Takes document pk to edit a specific document
+def document_detail(request, pk):
     document = get_object_or_404(Document, pk=pk)
-    crew_member = document.crew_member # Get the associated crew member
+    crew_member = document.crew_member
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this document.")
+        return redirect('dashboard')
+    # Corrected template path
+    return render(request, 'crew_management/document_detail.html', {'document': document, 'crew_member': crew_member})
 
-    # Authorization: Staff can edit any document.
-    # Crew can only edit documents linked to their own profile.
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to edit this document.")
 
+@login_required
+@user_passes_test(is_staff)
+def document_edit(request, pk):
+    document = get_object_or_404(Document, pk=pk)
+    crew_member = document.crew_member
     if request.method == 'POST':
         form = DocumentForm(request.POST, request.FILES, instance=document)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Document '{document.document_name}' updated successfully.")
-            return redirect('document_list_for_crew', crew_pk=crew_member.pk)
+            messages.success(request, f"Document '{document.document_name}' updated successfully!")
+            return redirect('document_detail', pk=document.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating document. Please check the form.")
     else:
         form = DocumentForm(instance=document)
 
     context = {
         'form': form,
         'document': document,
-        'crew': crew_member,
-        'title': f'Edit Document: {document.document_name}',
-        'button_text': 'Save Changes'
+        'crew_member': crew_member,
+        'title': f"Edit Document: {document.document_name}",
+        'button_text': "Save Changes",
     }
+    # Corrected template path
     return render(request, 'crew_management/document_form.html', context)
 
+
 @login_required
+@user_passes_test(is_staff)
 def document_delete(request, pk):
-    """
-    Handles the deletion of a Document record.
-    Accessible by staff users or the crew member who owns the document.
-    """
     document = get_object_or_404(Document, pk=pk)
-    crew_member = document.crew_member
-
-    # Authorization: Only staff users or the owner crew member can delete documents
-    if not request.user.is_staff and not request.user == crew_member.user:
-        messages.error(request, "You are not authorized to delete this document.")
-        return redirect('document_list_for_crew', crew_pk=crew_member.pk)
-
-    if request.method == 'GET': # Deletion triggered via a GET request from the button click
-        try:
-            document.delete()
-            messages.success(request, f"Document '{document.document_name}' has been successfully deleted.")
-        except Exception as e:
-            messages.error(request, f"Error deleting document '{document.document_name}': {e}")
-
-    return redirect('document_list_for_crew', crew_pk=crew_member.pk)
+    crew_pk = document.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET':
+        document.delete()
+        messages.success(request, f"Document '{document.document_name}' deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request. Please confirm deletion via the provided button/form.")
+    return redirect('crew_document_list', pk=crew_pk)
 
 
 # --- Experience History Management Views ---
-@login_required
-def experience_list_for_crew(request, crew_pk): # Takes crew_pk to list experience for a specific crew
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization: Staff can view all experience for any crew.
-    # Crew can only view experience for their own profile.
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view this experience history.")
-
-    experience_records = ExperienceHistory.objects.filter(crew_member=crew_member).order_by('-sign_on_date')
-
-    context = {
-        'crew': crew_member,
-        'experience_records': experience_records
-    }
-    return render(request, 'crew_management/experience_list_for_crew.html', context)
 
 @login_required
-def experience_detail(request, pk): # Takes experience pk
-    experience = get_object_or_404(ExperienceHistory, pk=pk)
-    crew_member = experience.crew_member # Get the associated crew member
+def crew_experience_list(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this profile's experience history.")
+        return redirect('dashboard')
+    experiences = ExperienceHistory.objects.filter(crew_member=crew_member).order_by('-sign_on_date')
+    # Corrected template path
+    return render(request, 'crew_management/experience_list_for_crew.html', {'crew': crew_member, 'experiences': experiences})
 
-    # Authorization: Staff can view any experience.
-    # Crew can only view experience linked to their own profile.
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view this experience record.")
-
-    context = {
-        'experience': experience,
-        'crew': crew_member
-    }
-    return render(request, 'crew_management/experience_detail.html', context)
 
 @login_required
-def experience_create(request, crew_pk): # Takes crew_pk to link new record to a specific crew
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to add experience for this profile.")
-
+@user_passes_test(is_staff)
+def experience_add(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
     if request.method == 'POST':
         form = ExperienceHistoryForm(request.POST)
         if form.is_valid():
-            new_experience = form.save(commit=False)
-            new_experience.crew_member = crew_member # Assign the correct crew member
-            new_experience.save()
-            messages.success(request, f"Experience on '{new_experience.vessel_name}' added successfully for {crew_member.first_name}.")
-            return redirect('experience_list_for_crew', crew_pk=crew_member.pk)
+            experience = form.save(commit=False)
+            experience.crew_member = crew_member
+            experience.save()
+            messages.success(request, f"Experience record added successfully for {crew_member.first_name}.")
+            return redirect('crew_experience_list', crew_pk=crew_member.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding experience record. Please check the form.")
     else:
         form = ExperienceHistoryForm()
 
     context = {
         'form': form,
         'crew': crew_member,
-        'title': f'Add New Experience for {crew_member.first_name} {crew_member.last_name}',
-        'button_text': 'Add Experience Record'
+        'title': f"Add Experience for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Record",
     }
+    # Corrected template path
     return render(request, 'crew_management/experience_form.html', context)
 
+
 @login_required
-def experience_edit(request, pk): # Takes experience pk to edit a specific record
+def experience_detail(request, pk):
     experience = get_object_or_404(ExperienceHistory, pk=pk)
-    crew_member = experience.crew_member # Get the associated crew member
+    crew_member = experience.crew_member
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this experience record.")
+        return redirect('dashboard')
+    # Corrected template path
+    return render(request, 'crew_management/experience_detail.html', {'experience': experience, 'crew': crew_member})
 
-    # Authorization: Staff can edit any experience.
-    # Crew can only edit experience linked to their own profile.
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to edit this experience record.")
 
+@login_required
+@user_passes_test(is_staff)
+def experience_edit(request, pk):
+    experience = get_object_or_404(ExperienceHistory, pk=pk)
+    crew_member = experience.crew_member
     if request.method == 'POST':
         form = ExperienceHistoryForm(request.POST, instance=experience)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Experience on '{experience.vessel.name}' updated successfully.")
-            return redirect('experience_list_for_crew', crew_pk=crew_member.pk)
+            messages.success(request, f"Experience record for {experience.vessel_name} updated successfully!")
+            return redirect('experience_detail', pk=experience.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating experience record. Please check the form.")
     else:
         form = ExperienceHistoryForm(instance=experience)
 
@@ -900,94 +941,90 @@ def experience_edit(request, pk): # Takes experience pk to edit a specific recor
         'form': form,
         'experience': experience,
         'crew': crew_member,
-        'title': f'Edit Experience: {experience.vessel.name}',
-        'button_text': 'Save Changes'
+        'title': f"Edit Experience for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Save Changes",
     }
+    # Corrected template path
     return render(request, 'crew_management/experience_form.html', context)
 
 
+@login_required
+@user_passes_test(is_staff)
+def experience_delete(request, pk):
+    experience = get_object_or_404(ExperienceHistory, pk=pk)
+    crew_pk = experience.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET':
+        experience.delete()
+        messages.success(request, "Experience record deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request.")
+    return redirect('crew_experience_list', crew_pk=crew_pk)
+
+
 # --- Next of Kin Management Views ---
+
 @login_required
-def nextofkin_list_for_crew(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view these Next of Kin records.")
-
+def crew_nextofkin_list(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this profile's next of kin records.")
+        return redirect('dashboard')
     next_of_kins = NextOfKin.objects.filter(crew_member=crew_member).order_by('full_name')
+    # Corrected template path
+    return render(request, 'crew_management/nextofkin_list_for_crew.html', {'crew': crew_member, 'next_of_kins': next_of_kins})
 
-    context = {
-        'crew': crew_member,
-        'next_of_kins': next_of_kins
-    }
-    return render(request, 'crew_management/nextofkin_list_for_crew.html', context)
 
 @login_required
-def nextofkin_detail(request, pk): # Takes nextofkin pk
-    nextofkin = get_object_or_404(NextOfKin, pk=pk)
-    crew_member = nextofkin.crew_member
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view this Next of Kin record.")
-
-    context = {
-        'nextofkin': nextofkin,
-        'crew': crew_member
-    }
-    return render(request, 'crew_management/nextofkin_detail.html', context)
-
-@login_required
-def nextofkin_create(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to add Next of Kin records for this profile.")
-
+@user_passes_test(is_staff)
+def nextofkin_add(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
     if request.method == 'POST':
-        form = NextOfKinForm(request.POST, request.FILES) # Pass request.FILES for cnic_copy
+        form = NextOfKinForm(request.POST, request.FILES)
         if form.is_valid():
-            new_nextofkin = form.save(commit=False)
-            new_nextofkin.crew_member = crew_member
-            new_nextofkin.save()
-            messages.success(request, f"Next of Kin '{new_nextofkin.full_name}' added successfully for {crew_member.first_name}.")
-            return redirect('nextofkin_list_for_crew', crew_pk=crew_member.pk)
+            nextofkin = form.save(commit=False)
+            nextofkin.crew_member = crew_member
+            nextofkin.save()
+            messages.success(request, f"Next of Kin record added successfully for {crew_member.first_name}.")
+            return redirect('crew_nextofkin_list', crew_pk=crew_member.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding Next of Kin record. Please check the form.")
     else:
         form = NextOfKinForm()
 
     context = {
         'form': form,
         'crew': crew_member,
-        'title': f'Add Next of Kin for {crew_member.first_name} {crew_member.last_name}',
-        'button_text': 'Add Next of Kin'
+        'title': f"Add Next of Kin for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Record",
     }
+    # Corrected template path
     return render(request, 'crew_management/nextofkin_form.html', context)
 
+
 @login_required
+def nextofkin_detail(request, pk):
+    nextofkin = get_object_or_404(NextOfKin, pk=pk)
+    crew_member = nextofkin.crew_member
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this next of kin record.")
+        return redirect('dashboard')
+    # Corrected template path
+    return render(request, 'crew_management/nextofkin_detail.html', {'nextofkin': nextofkin, 'crew': crew_member})
+
+
+@login_required
+@user_passes_test(is_staff)
 def nextofkin_edit(request, pk):
     nextofkin = get_object_or_404(NextOfKin, pk=pk)
     crew_member = nextofkin.crew_member
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to edit this Next of Kin record.")
-
     if request.method == 'POST':
-        form = NextOfKinForm(request.POST, request.FILES, instance=nextofkin) # Pass request.FILES
+        form = NextOfKinForm(request.POST, request.FILES, instance=nextofkin)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Next of Kin '{nextofkin.full_name}' updated successfully.")
-            return redirect('nextofkin_list_for_crew', crew_pk=crew_member.pk)
+            messages.success(request, f"Next of Kin record for {nextofkin.full_name} updated successfully!")
+            return redirect('nextofkin_detail', pk=nextofkin.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating Next of Kin record. Please check the form.")
     else:
         form = NextOfKinForm(instance=nextofkin)
 
@@ -995,98 +1032,91 @@ def nextofkin_edit(request, pk):
         'form': form,
         'nextofkin': nextofkin,
         'crew': crew_member,
-        'title': f'Edit Next of Kin: {nextofkin.full_name}',
-        'button_text': 'Save Changes'
+        'title': f"Edit Next of Kin for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Save Changes",
     }
+    # Corrected template path
     return render(request, 'crew_management/nextofkin_form.html', context)
 
 
+@login_required
+@user_passes_test(is_staff)
+def nextofkin_delete(request, pk):
+    nextofkin = get_object_or_404(NextOfKin, pk=pk)
+    crew_pk = nextofkin.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET':
+        nextofkin.delete()
+        messages.success(request, "Next of Kin record deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request.")
+    return redirect('crew_nextofkin_list', crew_pk=crew_pk)
+
+
 # --- Communication Log Management Views ---
-@login_required
-def communicationlog_list_for_crew(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view these communication logs.")
-
-    logs = CommunicationLog.objects.filter(crew_member=crew_member).order_by('-date') # Ordered by date descending
-
-    context = {
-        'crew': crew_member,
-        'logs': logs
-    }
-    return render(request, 'crew_management/communicationlog_list_for_crew.html', context)
 
 @login_required
-def communicationlog_detail(request, pk): # Takes log pk
-    log = get_object_or_404(CommunicationLog, pk=pk)
-    crew_member = log.crew_member
+def crew_communication_log_list(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this profile's communication logs.")
+        return redirect('dashboard')
+    logs = CommunicationLog.objects.filter(crew_member=crew_member).order_by('-date')
+    # Corrected template path
+    return render(request, 'crew_management/communicationlog_list_for_crew.html', {'crew': crew_member, 'logs': logs})
 
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view this communication log.")
-
-    context = {
-        'log': log,
-        'crew': crew_member
-    }
-    return render(request, 'crew_management/communicationlog_detail.html', context)
 
 @login_required
-def communicationlog_create(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to add communication logs for this profile.")
-
+@user_passes_test(is_staff)
+def communicationlog_add(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
     if request.method == 'POST':
         form = CommunicationLogForm(request.POST)
         if form.is_valid():
-            new_log = form.save(commit=False)
-            new_log.crew_member = crew_member
-            # Optionally, auto-set user_name if it's supposed to be the logged-in user
-            # new_log.user_name = request.user.username # Assuming user_name is the current logged-in user
-            new_log.save()
-            messages.success(request, f"Communication log for {new_log.contact_person_name} added successfully for {crew_member.first_name}.")
-            return redirect('communicationlog_list_for_crew', crew_pk=crew_member.pk)
+            log = form.save(commit=False)
+            log.crew_member = crew_member
+            log.user_name = request.user.username
+            log.save()
+            messages.success(request, f"Communication log added successfully for {crew_member.first_name}.")
+            return redirect('crew_communication_log_list', crew_pk=crew_member.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding communication log. Please check the form.")
     else:
-        # Pre-populate user_name with logged-in user if it's meant to be auto-filled
-        initial_data = {'user_name': request.user.username} if not request.user.is_anonymous else {}
-        form = CommunicationLogForm(initial=initial_data)
+        form = CommunicationLogForm()
 
     context = {
         'form': form,
         'crew': crew_member,
-        'title': f'Add Communication Log for {crew_member.first_name} {crew_member.last_name}',
-        'button_text': 'Add Log Entry'
+        'title': f"Add Communication Log for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Log Entry",
     }
+    # Corrected template path
     return render(request, 'crew_management/communicationlog_form.html', context)
 
+
 @login_required
+def communicationlog_detail(request, pk):
+    log = get_object_or_404(CommunicationLog, pk=pk)
+    crew_member = log.crew_member
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this communication log.")
+        return redirect('dashboard')
+    # Corrected template path
+    return render(request, 'crew_management/communicationlog_detail.html', {'log': log, 'crew': crew_member})
+
+
+@login_required
+@user_passes_test(is_staff)
 def communicationlog_edit(request, pk):
     log = get_object_or_404(CommunicationLog, pk=pk)
     crew_member = log.crew_member
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to edit this communication log.")
-
     if request.method == 'POST':
         form = CommunicationLogForm(request.POST, instance=log)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Communication log for {log.contact_person_name} updated successfully.")
-            return redirect('communicationlog_list_for_crew', crew_pk=crew_member.pk)
+            messages.success(request, f"Communication log for {log.contact_person_name} updated successfully!")
+            return redirect('communicationlog_detail', pk=log.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating communication log. Please check the form.")
     else:
         form = CommunicationLogForm(instance=log)
 
@@ -1094,94 +1124,90 @@ def communicationlog_edit(request, pk):
         'form': form,
         'log': log,
         'crew': crew_member,
-        'title': f'Edit Communication Log: {log.contact_person_name}',
-        'button_text': 'Save Changes'
+        'title': f"Edit Communication Log for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Save Changes",
     }
+    # Corrected template path
     return render(request, 'crew_management/communicationlog_form.html', context)
 
 
+@login_required
+@user_passes_test(is_staff)
+def communicationlog_delete(request, pk):
+    log = get_object_or_404(CommunicationLog, pk=pk)
+    crew_pk = log.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET':
+        log.delete()
+        messages.success(request, "Communication log entry deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request.")
+    return redirect('crew_communication_log_list', crew_pk=crew_pk)
+
+
 # --- Professional Reference Management Views ---
-@login_required
-def professionalreference_list_for_crew(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view these professional references.")
-
-    references = ProfessionalReference.objects.filter(crew_member=crew_member).order_by('company_name')
-
-    context = {
-        'crew': crew_member,
-        'references': references
-    }
-    return render(request, 'crew_management/professionalreference_list_for_crew.html', context)
 
 @login_required
-def professionalreference_detail(request, pk): # Takes reference pk
-    reference = get_object_or_404(ProfessionalReference, pk=pk)
-    crew_member = reference.crew_member
+def crew_professional_reference_list(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this profile's professional references.")
+        return redirect('dashboard')
+    references = ProfessionalReference.objects.filter(crew_member=crew_member).order_by('-date')
+    # Corrected template path
+    return render(request, 'crew_management/professionalreference_list_for_crew.html', {'crew': crew_member, 'references': references})
 
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view this professional reference.")
-
-    context = {
-        'reference': reference,
-        'crew': crew_member
-    }
-    return render(request, 'crew_management/professionalreference_detail.html', context)
 
 @login_required
-def professionalreference_create(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to add professional references for this profile.")
-
+@user_passes_test(is_staff)
+def professionalreference_add(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
     if request.method == 'POST':
         form = ProfessionalReferenceForm(request.POST)
         if form.is_valid():
-            new_reference = form.save(commit=False)
-            new_reference.crew_member = crew_member
-            new_reference.save() # Date field will be auto_now_add
-            messages.success(request, f"Professional Reference '{new_reference.contact_person}' added successfully for {crew_member.first_name}.")
-            return redirect('professionalreference_list_for_crew', crew_pk=crew_member.pk)
+            reference = form.save(commit=False)
+            reference.crew_member = crew_member
+            reference.save()
+            messages.success(request, f"Professional reference added successfully for {crew_member.first_name}.")
+            return redirect('crew_professional_reference_list', crew_pk=crew_member.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding professional reference. Please check the form.")
     else:
         form = ProfessionalReferenceForm()
 
     context = {
         'form': form,
         'crew': crew_member,
-        'title': f'Add Professional Reference for {crew_member.first_name} {crew_member.last_name}',
-        'button_text': 'Add Reference'
+        'title': f"Add Professional Reference for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Reference",
     }
+    # Corrected template path
     return render(request, 'crew_management/professionalreference_form.html', context)
 
+
 @login_required
+def professionalreference_detail(request, pk):
+    reference = get_object_or_404(ProfessionalReference, pk=pk)
+    crew_member = reference.crew_member
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this professional reference.")
+        return redirect('dashboard')
+    # Corrected template path
+    return render(request, 'crew_management/professionalreference_detail.html', {'reference': reference, 'crew': crew_member})
+
+
+@login_required
+@user_passes_test(is_staff)
 def professionalreference_edit(request, pk):
     reference = get_object_or_404(ProfessionalReference, pk=pk)
     crew_member = reference.crew_member
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to edit this professional reference.")
-
     if request.method == 'POST':
         form = ProfessionalReferenceForm(request.POST, instance=reference)
         if form.is_valid():
-            form.save() # Date field will be auto_now
-            messages.success(request, f"Professional Reference '{reference.contact_person}' updated successfully.")
-            return redirect('professionalreference_list_for_crew', crew_pk=crew_member.pk)
+            form.save()
+            messages.success(request, f"Professional reference for {reference.contact_person} updated successfully!")
+            return redirect('professionalreference_detail', pk=reference.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating professional reference. Please check the form.")
     else:
         form = ProfessionalReferenceForm(instance=reference)
 
@@ -1189,100 +1215,90 @@ def professionalreference_edit(request, pk):
         'form': form,
         'reference': reference,
         'crew': crew_member,
-        'title': f'Edit Professional Reference: {reference.contact_person}',
-        'button_text': 'Save Changes'
+        'title': f"Edit Professional Reference for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Save Changes",
     }
+    # Corrected template path
     return render(request, 'crew_management/professionalreference_form.html', context)
 
+
 @login_required
-def appraisal_list_for_crew(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
+@user_passes_test(is_staff)
+def professionalreference_delete(request, pk):
+    reference = get_object_or_404(ProfessionalReference, pk=pk)
+    crew_pk = reference.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET':
+        reference.delete()
+        messages.success(request, "Professional reference deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request.")
+    return redirect('crew_professional_reference_list', crew_pk=crew_pk)
 
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view these appraisals.")
 
+# --- Appraisal Management Views ---
+
+@login_required
+def crew_appraisal_list(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this profile's appraisals.")
+        return redirect('dashboard')
     appraisals = Appraisal.objects.filter(crew_member=crew_member).order_by('-evaluation_date')
+    # Corrected template path
+    return render(request, 'crew_management/appraisal_list_for_crew.html', {'crew': crew_member, 'appraisals': appraisals})
 
-    context = {
-        'crew': crew_member,
-        'appraisals': appraisals
-    }
-    return render(request, 'crew_management/appraisal_list_for_crew.html', context)
 
 @login_required
-def appraisal_detail(request, pk): # Takes appraisal pk
-    appraisal = get_object_or_404(Appraisal, pk=pk)
-    crew_member = appraisal.crew_member
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to view this appraisal.")
-
-    context = {
-        'appraisal': appraisal,
-        'crew': crew_member
-    }
-    return render(request, 'crew_management/appraisal_detail.html', context)
-
-@login_required
-def appraisal_create(request, crew_pk):
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to add appraisals for this profile.") # Changed Http44 to Http404
-
+@user_passes_test(is_staff)
+def appraisal_add(request, crew_pk): # Corrected to crew_pk
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
     if request.method == 'POST':
         form = AppraisalForm(request.POST)
         if form.is_valid():
-            new_appraisal = form.save(commit=False)
-            new_appraisal.crew_member = crew_member
-            # Auto-fill fields if they are meant to be auto-appearing based on crew/vessel
-            # new_appraisal.seafarer_name = f"{crew_member.first_name} {crew_member.last_name}" # Example, if this wasn't a @property
-            # new_appraisal.ssb_no = crew_member.ssb_no # Example
-            # new_appraisal.client_name = crew_member.client_name_for_appraisal # Example
-            new_appraisal.save()
-            messages.success(request, f"Appraisal for {new_appraisal.vessel.name if new_appraisal.vessel else 'N/A Vessel'} added successfully for {crew_member.first_name}.")
-            return redirect('appraisal_list_for_crew', crew_pk=crew_member.pk)
+            appraisal = form.save(commit=False)
+            appraisal.crew_member = crew_member
+            appraisal.save()
+            messages.success(request, f"Appraisal added successfully for {crew_member.first_name}.")
+            return redirect('crew_appraisal_list', crew_pk=crew_member.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error adding appraisal. Please check the form.")
     else:
-        # Optionally pre-fill vessel with current_vessel if it's the most common case
-        initial_data = {}
-        if crew_member.current_vessel:
-            initial_data['vessel'] = crew_member.current_vessel.pk
-        form = AppraisalForm(initial=initial_data)
+        form = AppraisalForm()
 
     context = {
         'form': form,
         'crew': crew_member,
-        'title': f'Add Appraisal for {crew_member.first_name} {crew_member.last_name}',
-        'button_text': 'Add Appraisal'
+        'title': f"Add Appraisal for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Appraisal",
     }
+    # Corrected template path
     return render(request, 'crew_management/appraisal_form.html', context)
 
+
 @login_required
+def appraisal_detail(request, pk):
+    appraisal = get_object_or_404(Appraisal, pk=pk)
+    crew_member = appraisal.crew_member
+    if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
+        messages.error(request, "You are not authorized to view this appraisal.")
+        return redirect('dashboard')
+    # Corrected template path
+    return render(request, 'crew_management/appraisal_detail.html', {'appraisal': appraisal, 'crew': crew_member})
+
+
+@login_required
+@user_passes_test(is_staff)
 def appraisal_edit(request, pk):
     appraisal = get_object_or_404(Appraisal, pk=pk)
     crew_member = appraisal.crew_member
-
-    # Authorization
-    if not request.user.is_staff:
-        if not request.user == crew_member.user:
-            raise Http404("You are not authorized to edit this appraisal.")
-
     if request.method == 'POST':
         form = AppraisalForm(request.POST, instance=appraisal)
         if form.is_valid():
             form.save()
-            messages.success(request, f"Appraisal for {appraisal.vessel.name if appraisal.vessel else 'N/A Vessel'} updated successfully.")
-            return redirect('appraisal_list_for_crew', crew_pk=crew_member.pk)
+            messages.success(request, f"Appraisal for {appraisal.seafarer_name} updated successfully!")
+            return redirect('appraisal_detail', pk=appraisal.pk)
         else:
-            messages.error(request, "Please correct the errors below.")
+            messages.error(request, "Error updating appraisal. Please check the form.")
     else:
         form = AppraisalForm(instance=appraisal)
 
@@ -1290,7 +1306,21 @@ def appraisal_edit(request, pk):
         'form': form,
         'appraisal': appraisal,
         'crew': crew_member,
-        'title': f'Edit Appraisal: {appraisal.vessel.name if appraisal.vessel else "N/A Vessel"}',
-        'button_text': 'Save Changes'
+        'title': f"Edit Appraisal for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Save Changes",
     }
+    # Corrected template path
     return render(request, 'crew_management/appraisal_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def appraisal_delete(request, pk):
+    appraisal = get_object_or_404(Appraisal, pk=pk)
+    crew_pk = appraisal.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET':
+        appraisal.delete()
+        messages.success(request, "Appraisal record deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request.")
+    return redirect('crew_appraisal_list', crew_pk=crew_pk)

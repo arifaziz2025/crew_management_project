@@ -200,7 +200,7 @@
             margin: 20px auto;
         }
         .profile-container, .edit-container, .form-container { max-width: 800px; }
-        .container { max-width: 900px; } /* Specific for list pages */
+        .container { max-width: 900px; }
 
         h1, h2, h3 {
             color: var(--text-white);
@@ -218,26 +218,26 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
-            background-color: var(--card-bg); /* Use variable for consistency */
-            border: 1px solid var(--border-color); /* Use variable for consistency */
-            border-radius: 8px; /* Consistent with other containers */
-            overflow: hidden; /* Ensures rounded corners apply to table content */
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
         }
         th, td {
             padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color); /* Use variable for consistency */
+            border-bottom: 1px solid var(--border-color);
             color: var(--text-light);
         }
         th {
-            background-color: var(--button-bg); /* Use variable for consistency */
+            background-color: var(--button-bg);
             color: var(--text-white);
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
         tr:hover {
-            background-color: var(--button-hover-bg); /* Use variable for consistency */
+            background-color: var(--button-hover-bg);
         }
         td a {
             color: var(--link-color);
@@ -252,21 +252,114 @@
             color: var(--text-light);
         }
         .action-link-button {
-            background-color: var(--button-bg); /* Use variable for consistency */
-            color: var(--text-white); /* Use variable for consistency */
-            padding: 8px 15px; /* Smaller padding for these specific buttons */
-            border-radius: 4px; /* Consistent with other forms */
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 8px 15px;
+            border-radius: 4px;
             margin-bottom: 20px;
             margin-right: 10px;
         }
         .action-link-button:hover {
-            background-color: var(--button-hover-bg); /* Use variable for consistency */
+            background-color: var(--button-hover-bg);
         }
-        /* Specific status colors from original, ensure they use variables if available, otherwise keep hardcoded */
-        .status-valid { color: var(--messages-success); } /* Changed to use variable */
-        .status-expired { color: var(--messages-error); } /* Changed to use variable */
-        .status-expiring { color: var(--messages-warning); } /* Changed to use variable */
+        .delete-button { /* Added for consistency with other delete buttons */
+            background-color: var(--messages-error);
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: var(--text-white);
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
     </style>
+    <script>
+        function showCustomConfirm(message, onConfirm) {
+            const existingModal = document.getElementById('customConfirmModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            const modalHtml = `
+                <div id="customConfirmModal" style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                ">
+                    <div style="
+                        background: var(--card-bg);
+                        padding: 25px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+                        text-align: center;
+                        color: var(--text-light);
+                        max-width: 400px;
+                        width: 90%;
+                        border: 1px solid var(--border-color);
+                    ">
+                        <p style="margin-bottom: 20px; font-size: 1.1em;">${message}</p>
+                        <button id="confirmYes" style="
+                            background-color: var(--messages-error);
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin-right: 15px;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">Yes</button>
+                        <button id="confirmNo" style="
+                            background-color: var(--button-bg);
+                            color: var(--text-white);
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 1em;
+                            transition: background-color 0.2s ease;
+                        ">No</button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            document.getElementById('confirmYes').onclick = () => {
+                onConfirm();
+                document.getElementById('customConfirmModal').remove();
+            };
+
+            document.getElementById('confirmNo').onclick = () => {
+                document.getElementById('customConfirmModal').remove();
+            };
+        }
+
+        function confirmDeleteExperience(id) {
+            showCustomConfirm("Are you sure you want to delete this experience record? This action cannot be undone.", function() {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = "{% url 'experience_delete' pk=0 %}".replace('0', id);
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = '{{ csrf_token }}';
+                form.appendChild(csrfInput);
+                document.body.appendChild(form);
+                form.submit();
+            });
+        }
+    </script>
 </head>
 <body>
     {# Top Utility Bar #}
@@ -284,7 +377,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Crew Experience History</p> {# Subtitle for Experience List #}
+            <p class="header-subtitle">Crew Experience History</p>
         </div>
     </div>
 
@@ -301,11 +394,11 @@
             <h1>Experience History for {{ crew.first_name }} {{ crew.last_name }}</h1>
             {% if request.user.is_staff or request.user == crew.user %}
                 <p>
-                    <a href="{% url 'experience_create' crew_pk=crew.pk %}" class="action-link-button">+ Add New Experience Record</a>
+                    <a href="{% url 'experience_add' crew_pk=crew.pk %}" class="action-link-button">+ Add New Experience Record</a>
                 </p>
             {% endif %}
 
-            {% if experience_records %}
+            {% if experiences %}
                 <table>
                     <thead>
                         <tr>
@@ -316,10 +409,11 @@
                             <th>Sign Off</th>
                             <th>Total Experience</th>
                             <th>Details</th>
+                            <th>Delete</th> {# Added Delete Column #}
                         </tr>
                     </thead>
                     <tbody>
-                        {% for record in experience_records %}
+                        {% for record in experiences %}
                         <tr>
                             <td>{{ record.company_principal_name }}</td>
                             <td>{{ record.vessel_name }} ({{ record.vessel_type|default:"N/A" }})</td>
@@ -328,6 +422,11 @@
                             <td>{{ record.sign_off_date|date:"M j, Y" }}</td>
                             <td>{{ record.total_experience }}</td>
                             <td><a href="{% url 'experience_detail' pk=record.pk %}">View</a></td>
+                            <td>
+                                {% if request.user.is_staff or request.user == crew.user %}
+                                <button class="delete-button" onclick="confirmDeleteExperience({{ record.pk }})">Delete</button>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -344,9 +443,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

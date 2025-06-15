@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
+    <title>{{ title|default:"Document Form" }}</title>
     <style>
-        /* Base Colors (from base_login_dashboard.html) */
+        /* Base Colors */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -38,30 +38,30 @@
             background-color: var(--main-bg-dark); /* Matches body background */
             padding: 10px 20px;
             display: flex;
-            justify-content: flex-end; /* Aligns content to the right */
-            align-items: center; /* Ensures vertical alignment */
+            justify-content: flex-end;
+            align-items: center;
             font-size: 0.9em;
             color: var(--text-light);
-            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
-            border-bottom: 1px solid var(--border-color); /* Subtle separator */
-            line-height: 1.2; /* ADDED: Explicit line-height for better vertical alignment */
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
+            line-height: 1.2;
         }
 
         .top-utility-bar span,
         .top-utility-bar .action-link-button {
-            vertical-align: middle; /* ADDED: Ensure all inline-block elements align to middle */
+            vertical-align: middle;
         }
 
         .top-utility-bar .action-link-button {
             padding: 5px 10px;
-            font-size: 0.8em; /* Smaller font size for button */
-            margin-left: 15px; /* Space between text and button */
+            font-size: 0.8em;
+            margin-left: 15px;
         }
 
         /* --- HEADER STYLING --- */
         .header-container {
             background-color: var(--card-bg);
-            padding: 10px 20px; /* Consistent padding */
+            padding: 10px 20px;
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             position: relative;
@@ -75,7 +75,7 @@
             height: 80px;
             width: auto;
             max-width: 100%;
-            margin-bottom: 10px; /* Consistent margin from login/dashboard */
+            margin-bottom: 10px;
             display: block;
             margin-left: auto;
             margin-right: auto;
@@ -87,8 +87,8 @@
             width: 100%;
         }
         .header-branding h1 {
-            white-space: nowrap; /* Ensures text stays on a single line */
-            font-size: 2.2em; /* Consistent large font size */
+            white-space: nowrap;
+            font-size: 2.2em;
             color: var(--text-white);
             margin: 0;
             line-height: 1;
@@ -97,13 +97,13 @@
         }
 
         .header-subtitle {
-            font-size: 1.2em; /* Consistent subtitle font size */
+            font-size: 1.2em;
             color: var(--link-color) !important;
-            margin-top: 5px; /* Consistent spacing */
+            margin-top: 5px;
             line-height: 1;
         }
 
-        @media (max-width: 768px) { /* Adjust for mobile */
+        @media (max-width: 768px) {
             .top-utility-bar {
                 flex-direction: column;
                 align-items: center;
@@ -148,18 +148,38 @@
             color: var(--text-light);
         }
         /* --- COMMON BUTTONS & LINKS --- */
-        .action-link-button {
-            background-color: var(--button-bg);
+        .action-link-button { /* Keep this as primary button style */
+            background-color: var(--button-bg); /* Default: Grey-ish blue */
             color: var(--text-white);
             padding: 10px 20px;
             border-radius: 5px;
             text-decoration: none;
             display: inline-block;
             transition: background-color 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
         }
         .action-link-button:hover {
             background-color: var(--button-hover-bg);
         }
+        /* Add a specific class for the primary green action button */
+        .primary-action-button {
+            background-color: var(--link-color); /* Green for submit button */
+            color: var(--main-bg-dark); /* Dark text on green button */
+            padding: 12px 25px; /* Larger padding for a more prominent button */
+            font-size: 1.1em; /* Larger font size */
+            margin-top: 20px; /* Space above */
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            display: inline-block;
+            box-sizing: border-box;
+        }
+        .primary-action-button:hover {
+            filter: brightness(90%);
+        }
+
         a {
             color: var(--link-color);
             text-decoration: none;
@@ -213,7 +233,7 @@
         }
 
         /* Styles specific to Document Form page */
-        .form-container { max-width: 600px; } /* Override common container to be 600px */
+        .form-container { max-width: 600px; }
         h1 { /* This h1 is specifically for the form title within the container */
             color: var(--text-white);
             text-align: center;
@@ -231,7 +251,8 @@
             font-weight: bold;
             color: var(--text-white);
         }
-        form input[type="text"], form input[type="email"], form input[type="tel"], form input[type="date"], form textarea, form select, form input[type="number"] {
+        form input[type="text"], form input[type="email"], form input[type="tel"],
+        form input[type="date"], form textarea, form select, form input[type="number"] {
             width: calc(100% - 22px); padding: 10px; border: 1px solid var(--button-bg); border-radius: 4px;
             background-color: var(--main-bg-dark); color: var(--text-white); box-sizing: border-box; }
         form input[type="file"] {
@@ -239,12 +260,35 @@
             background-color: var(--main-bg-dark); color: var(--text-white); width: 100%; box-sizing: border-box; }
         form .helptext, form ul.errorlist { font-size: 0.9em; color: var(--text-light); margin-top: 5px; }
         form ul.errorlist { color: var(--messages-error); list-style-type: none; padding-left: 0; margin-bottom: 10px; }
-        form button[type="submit"] {
-            background-color: var(--link-color); color: var(--main-bg-dark); border: none; padding: 12px 25px; border-radius: 4px;
-            cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; margin-top: 20px; }
-        form button[type="submit"]:hover { background-color: var(--link-color); filter: brightness(90%); }
-        a { color: var(--link-color); text-decoration: none; margin-top: 10px; display: inline-block; }
-        a:hover { text-decoration: underline; }
+
+        /* Styles for the actions buttons at the bottom */
+        .form-actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .form-actions .action-link-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 0 5px;
+        }
+        .back-link-bottom { /* Original class for the bottom links */
+            text-align: center;
+            margin-top: 30px;
+        }
+        .back-link-bottom a {
+             margin-right: 10px;
+        }
+        /* Specific styles for date inputs to make calendar icon visible ONLY */
+        form input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+            font-size: 1.2em;
+            padding-left: 5px;
+        }
+        form input[type="date"] {
+            background-color: var(--main-bg-dark);
+            color: var(--text-white);
+        }
     </style>
 </head>
 <body>
@@ -263,7 +307,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Document Form</p> {# Subtitle for Document Form #}
+            <p class="header-subtitle">Document Form</p>
         </div>
     </div>
 
@@ -282,17 +326,17 @@
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 {{ form.as_p }}
-                <button type="submit">{{ button_text }}</button>
+                {# The submit button with the new primary-action-button class #}
+                <button type="submit" class="primary-action-button">{{ button_text|default:"Save Document" }}</button>
             </form>
 
-            <p>
-                {% if document %} {# If editing an existing document #}
-                    <a href="{% url 'document_detail' pk=document.pk %}">Back to Document Details</a>
-                {% else %} {# If creating a new document #}
-                    <a href="{% url 'document_list_for_crew' crew_pk=crew.pk %}">Back to Documents List</a>
+            <p class="form-actions">
+                {% if document %}
+                    <a href="{% url 'document_detail' pk=document.pk %}" class="action-link-button">Back to Document Details</a>
+                {% else %}
+                    <a href="{% url 'crew_document_list' pk=crew_member.pk %}" class="action-link-button">Back to Documents List</a>
                 {% endif %}
-                <span style="margin: 0 10px;">|</span>
-                <a href="{% url 'crew_profile_detail' pk=crew.pk %}">Back to Crew Profile</a>
+                <a href="{% url 'crew_profile_detail' pk=crew_member.pk %}" class="action-link-button">Back to Crew Profile</a>
             </p>
         </div>
     </div>
@@ -300,8 +344,6 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
         {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}

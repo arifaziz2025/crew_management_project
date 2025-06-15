@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documents for {{ crew.first_name }} {{ crew.last_name }}</title>
+    <title>Documents for {{ crew_member.first_name }} {{ crew_member.last_name }}</title>
     <style>
         /* Base Colors */
         :root {
@@ -87,8 +87,8 @@
             width: 100%;
         }
         .header-branding h1 {
-            white-space: nowrap; /* Ensures text stays on a single line */
-            font-size: 2.2em; /* Consistent large font size */
+            white-space: nowrap;
+            font-size: 2.2em;
             color: var(--text-white);
             margin: 0;
             line-height: 1;
@@ -97,13 +97,13 @@
         }
 
         .header-subtitle {
-            font-size: 1.2em; /* Consistent subtitle font size */
+            font-size: 1.2em;
             color: var(--link-color) !important;
-            margin-top: 5px; /* Consistent spacing */
+            margin-top: 5px;
             line-height: 1;
         }
 
-        @media (max-width: 768px) { /* Adjust for mobile */
+        @media (max-width: 768px) {
             .top-utility-bar {
                 flex-direction: column;
                 align-items: center;
@@ -117,7 +117,7 @@
 
             .header-container { padding: 10px; }
             .header-logo {
-                height: 60px; /* Smaller logo on mobile */
+                height: 60px;
                 margin-bottom: 10px;
             }
             .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
@@ -203,7 +203,7 @@
             margin: 20px auto;
         }
         .profile-container, .edit-container, .form-container { max-width: 800px; }
-        .container { max-width: 900px; } /* Specific for list pages */
+        .container { max-width: 900px; }
 
         h1, h2, h3 {
             color: var(--text-white);
@@ -212,7 +212,7 @@
         .container h1, .profile-container h1, .form-container h1, .edit-container h1 {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: none; /* REMOVED LINE */
+            border-bottom: none;
             padding-bottom: 15px;
         }
 
@@ -224,32 +224,32 @@
             background-color: #333355; /* Slightly lighter card background for table */
             border: 1px solid #444477;
             border-radius: 6px;
-            overflow: hidden; /* Ensures rounded corners apply to table content */
-            table-layout: fixed; /* Ensures column widths are respected */
+            overflow: hidden;
+            table-layout: fixed;
         }
         th, td {
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid #444477;
             color: var(--text-light);
-            word-wrap: break-word; /* Allows long words to break and wrap */
-            overflow: hidden; /* Hide content that overflows cell */
-            white-space: normal; /* Allow text to wrap by default in cells */
+            word-wrap: break-word;
+            overflow: hidden;
+            white-space: normal;
         }
         th {
-            background-color: #4a4a7a; /* Header background matching Crew Roster */
+            background-color: #4a4a7a;
             color: var(--text-white);
-            font-weight: bold; /* Reverted to bold as in crew_list */
+            font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            white-space: nowrap; /* Force headers to one line */
-            font-size: 0.9em; /* Consistent font size for headers */
+            white-space: nowrap;
+            font-size: 0.9em;
         }
         tr:nth-child(even) {
-            background-color: #2a2a4a; /* Alternate row background matching Crew Roster */
+            background-color: #2a2a4a;
         }
         tr:hover {
-            background-color: #3a3a6a; /* Hover effect matching Crew Roster */
+            background-color: #3a3a6a;
         }
         td a {
             color: var(--link-color);
@@ -281,29 +281,28 @@
         table col.col-issued { width: 12%; }
         table col.col-expires { width: 12%; }
         table col.col-status { width: 10%; }
-        table col.col-details { width: 8%; } /* For View link */
-        table col.col-delete { width: 8%; } /* For Delete button */
+        table col.col-details { width: 8%; }
+        table col.col-delete { width: 8%; }
 
-        /* Apply widths directly to th for stronger control */
-        table th:nth-child(1) { width: 18%; } /* Document Name */
-        table th:nth-child(2) { width: 10%; } /* Type */
-        table th:nth-child(3) { width: 12%; } /* Number */
-        table th:nth-child(4) { width: 12%; } /* Issued */
-        table th:nth-child(5) { width: 12%; } /* Expires */
-        table th:nth-child(6) { width: 10%; } /* Status */
-        table th:nth-child(7) { width: 8%; }  /* Details (View) */
-        table th:nth-child(8) { width: 8%; }  /* Delete */
+        table th:nth-child(1) { width: 18%; }
+        table th:nth-child(2) { width: 10%; }
+        table th:nth-child(3) { width: 12%; }
+        table th:nth-child(4) { width: 12%; }
+        table th:nth-child(5) { width: 12%; }
+        table th:nth-child(6) { width: 10%; }
+        table th:nth-child(7) { width: 8%; }
+        table th:nth-child(8) { width: 8%; }
 
         /* Centralize dates for consistency with Crew Roster (Last Signed Off Date) */
-        table td:nth-child(4), /* Issued Date */
-        table td:nth-child(5) { /* Expires Date */
+        table td:nth-child(4),
+        table td:nth-child(5) {
             text-align: center;
-            white-space: nowrap; /* Prevent dates from wrapping */
+            white-space: nowrap;
         }
 
         /* Style for delete buttons in table cells */
         .delete-button {
-            background-color: var(--messages-error); /* Red for delete */
+            background-color: var(--messages-error);
             padding: 6px 12px;
             border-radius: 4px;
             color: var(--text-white);
@@ -314,7 +313,7 @@
             transition: background-color 0.2s ease;
         }
         .delete-button:hover {
-            background-color: #c82333; /* Darker red on hover */
+            background-color: #c82333;
         }
 
         /* --- RESPONSIVE ADJUSTMENTS --- */
@@ -331,7 +330,7 @@
             }
             .header-container { padding: 10px; }
             .header-logo {
-                height: 60px; /* Smaller logo on mobile */
+                height: 60px;
                 margin-bottom: 10px;
             }
             .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
@@ -347,45 +346,31 @@
                 padding: 15px;
             }
             table {
-                table-layout: auto; /* Allow auto layout on small screens for better content fit */
+                table-layout: auto;
             }
-            table colgroup { display: none; } /* Hide colgroup on small screens */
+            table colgroup { display: none; }
             table th, table td {
-                font-size: 0.7em; /* Further reduce font size for tables on small screens */
+                font-size: 0.7em;
                 padding: 4px 6px;
-                white-space: normal; /* Allow wrapping for all cells on small screens */
-                word-wrap: break-word; /* Allow long words to break */
-                min-width: unset; /* Remove min-width to allow flexibility */
-                text-align: left; /* Default text alignment */
+                white-space: normal;
+                word-wrap: break-word;
+                min-width: unset;
+                text-align: left;
             }
-            /* Specific mobile adjustments if needed for buttons/links in cells */
-            table td:nth-child(7), table td:nth-child(8) { /* Details and Delete columns */
-                text-align: center; /* Center actions on mobile */
+            table td:nth-child(7), table td:nth-child(8) {
+                text-align: center;
             }
             .delete-button {
-                margin-left: 0; /* No specific left margin when stacked vertically */
+                margin-left: 0;
             }
         }
     </style>
     <script>
-        // Store the base URL pattern in a JavaScript variable
-        const DOCUMENT_DELETE_BASE_URL = "{% url 'document_delete' pk=0 %}"; // Corrected URL pattern name
-
-        function confirmDelete(id) {
-            // Construct the final URL by replacing the placeholder '0' with the actual ID
-            const url = DOCUMENT_DELETE_BASE_URL.replace('0', id);
-
-            // Using a custom message box instead of alert/confirm
-            showCustomConfirm("Are you sure you want to delete this record? This action cannot be undone.", function() {
-                window.location.href = url;
-            });
-        }
-
         // Custom confirm dialog function (replaces default browser confirm)
         function showCustomConfirm(message, onConfirm) {
             const existingModal = document.getElementById('customConfirmModal');
             if (existingModal) {
-                existingModal.remove(); // Remove any previous modal to prevent duplicates
+                existingModal.remove();
             }
 
             const modalHtml = `
@@ -414,7 +399,7 @@
                     ">
                         <p style="margin-bottom: 20px; font-size: 1.1em;">${message}</p>
                         <button id="confirmYes" style="
-                            background-color: var(--messages-error); /* Corrected variable usage */
+                            background-color: var(--messages-error);
                             color: var(--text-white);
                             padding: 10px 20px;
                             border: none;
@@ -425,7 +410,7 @@
                             transition: background-color 0.2s ease;
                         ">Yes</button>
                         <button id="confirmNo" style="
-                            background-color: var(--button-bg); /* Corrected variable usage */
+                            background-color: var(--button-bg);
                             color: var(--text-white);
                             padding: 10px 20px;
                             border: none;
@@ -448,6 +433,23 @@
                 document.getElementById('customConfirmModal').remove();
             };
         }
+
+        function confirmDeleteDocument(id) {
+            showCustomConfirm("Are you sure you want to delete this document? This action cannot be undone.", function() {
+                // Create a form element dynamically
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = "{% url 'document_delete' pk=0 %}".replace('0', id);
+                // Add CSRF token
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = '{{ csrf_token }}'; // Django's csrf_token
+                form.appendChild(csrfInput);
+                document.body.appendChild(form);
+                form.submit();
+            });
+        }
     </script>
 </head>
 <body>
@@ -466,7 +468,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Document History</p> {# Subtitle for Document History #}
+            <p class="header-subtitle">Document History</p>
         </div>
     </div>
 
@@ -480,15 +482,13 @@
     {# Main Content Area #}
     <div class="main-content">
         <div class="container">
-            <h1>Documents for {{ crew.first_name }} {{ crew.last_name }}</h1>
-            {% if request.user.is_staff or request.user == crew.user %}
+            <h1>Documents for {{ crew_member.first_name }} {{ crew_member.last_name }}</h1>
+            {% if request.user.is_staff or request.user == crew_member.user %}
                 <p>
-                    <a href="{% url 'document_create' crew_pk=crew.pk %}" class="action-link-button">+ Add New Document</a>
+                    <a href="{% url 'crew_document_add' pk=crew_member.pk %}" class="action-link-button">+ Add New Document</a>
                 </p>
             {% endif %}
 
-            {# JavaScript variable to store the base URL pattern for document delete #}
-            {# MOVED: Script block moved to head to prevent re-declaration errors #}
             {% if documents %}
                 <table>
                     <colgroup>
@@ -498,8 +498,8 @@
                         <col class="col-issued">
                         <col class="col-expires">
                         <col class="col-status">
-                        <col class="col-details"> {# Explicitly for Details #}
-                        <col class="col-delete"> {# Explicitly for Delete #}
+                        <col class="col-details">
+                        <col class="col-delete">
                     </colgroup>
                     <thead>
                         <tr>
@@ -509,8 +509,8 @@
                             <th>Issued</th>
                             <th>Expires</th>
                             <th>Status</th>
-                            <th>Details</th> {# Now only for View link #}
-                            <th>Delete</th> {# Now for Delete button #}
+                            <th>Details</th>
+                            <th>Delete</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -524,7 +524,7 @@
                                 {% if doc.expiry_date %}
                                     {% if doc.is_expired %}
                                         <span class="expired-doc">{{ doc.expiry_date|date:"M j, Y" }} (Expired!)</span>
-                                    {% elif doc.days_to_expiry <= 90 %} {# Expiring within 90 days #}
+                                    {% elif doc.days_to_expiry <= 90 %}
                                         <span class="expiring-soon-doc">{{ doc.expiry_date|date:"M j, Y" }} ({{ doc.days_to_expiry }} days left)</span>
                                     {% else %}
                                         {{ doc.expiry_date|date:"M j, Y" }}
@@ -546,8 +546,8 @@
                                 <a href="{% url 'document_detail' pk=doc.pk %}">View</a>
                             </td>
                             <td>
-                                {% if request.user.is_staff or request.user == crew.user %}
-                                <button class="delete-button" onclick="confirmDelete({{ doc.pk }})">Delete</button>
+                                {% if request.user.is_staff or request.user == crew_member.user %}
+                                <button class="delete-button" onclick="confirmDeleteDocument({{ doc.pk }})">Delete</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -558,7 +558,7 @@
                 <p class="no-data">No documents found for this crew member.</p>
             {% endif %}
             <p style="text-align: center; margin-top: 20px;">
-                <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Profile</a>
+                <a href="{% url 'crew_profile_detail' pk=crew_member.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Profile</a>
             </p>
         </div>
     </div>
@@ -566,8 +566,6 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
         {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}

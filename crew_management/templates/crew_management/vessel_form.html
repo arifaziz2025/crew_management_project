@@ -213,32 +213,29 @@
         }
 
         /* Styles specific to Vessel Form page */
-        .form-container { max-width: 600px; } /* Override common container to be 600px */
-        /* h1 style from .container h1 is inherited and applies here */
+        .form-container { max-width: 600px; }
         form p { /* Styles for Django form fields wrapped in <p> */
             margin-bottom: 15px;
-            color: var(--text-light); /* Used variable */
+            color: var(--text-light);
         }
         form label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
-            color: var(--text-white); /* Used variable */
+            color: var(--text-white);
         }
         form input[type="text"], form input[type="email"], form input[type="tel"], form textarea, form select, form input[type="number"] {
-            width: calc(100% - 22px); padding: 10px; border: 1px solid var(--button-bg); border-radius: 4px; /* Used variable */
-            background-color: var(--main-bg-dark); color: var(--text-white); box-sizing: border-box; } /* Used variables */
+            width: calc(100% - 22px); padding: 10px; border: 1px solid var(--button-bg); border-radius: 4px;
+            background-color: var(--main-bg-dark); color: var(--text-white); box-sizing: border-box; }
         form input[type="file"] {
-            padding: 5px; border: 1px solid var(--button-bg); border-radius: 4px; /* Used variable */
-            background-color: var(--main-bg-dark); color: var(--text-white); width: 100%; box-sizing: border-box; } /* Used variables */
-        form .helptext, form ul.errorlist { font-size: 0.9em; color: var(--text-light); margin-top: 5px; } /* Used variable */
-        form ul.errorlist { color: var(--messages-error); list-style-type: none; padding-left: 0; margin-bottom: 10px; } /* Used variable */
+            padding: 5px; border: 1px solid var(--button-bg); border-radius: 4px;
+            background-color: var(--main-bg-dark); color: var(--text-white); width: 100%; box-sizing: border-box; }
+        form .helptext, form ul.errorlist { font-size: 0.9em; color: var(--text-light); margin-top: 5px; }
+        form ul.errorlist { color: var(--messages-error); list-style-type: none; padding-left: 0; margin-bottom: 10px; }
         form button[type="submit"] {
-            background-color: var(--link-color); color: var(--main-bg-dark); border: none; padding: 12px 25px; border-radius: 4px; /* Used variables */
+            background-color: var(--link-color); color: var(--main-bg-dark); border: none; padding: 12px 25px; border-radius: 4px;
             cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; margin-top: 20px; }
-        form button[type="submit"]:hover { background-color: var(--link-color); filter: brightness(90%); } /* Used variable */
-        /* a { color: var(--link-color); text-decoration: none; margin-top: 10px; display: inline-block; } Already defined in common section */
-        /* a:hover { text-decoration: underline; } Already defined in common section */
+        form button[type="submit"]:hover { background-color: var(--link-color); filter: brightness(90%); }
     </style>
 </head>
 <body>
@@ -257,7 +254,7 @@
         <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
         <div class="header-branding">
             <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
-            <p class="header-subtitle">Vessel Form</p> {# Subtitle for Vessel Form #}
+            <p class="header-subtitle">Vessel Form</p>
         </div>
     </div>
 
@@ -280,9 +277,9 @@
             </form>
 
             <p>
-                {% if vessel %} {# If editing an existing vessel #}
+                {% if vessel %}
                     <a href="{% url 'vessel_detail' pk=vessel.pk %}">Back to Vessel Details</a>
-                {% else %} {# If creating a new vessel #}
+                {% else %}
                     <a href="{% url 'vessel_list' %}">Back to Vessels List</a>
                 {% endif %}
                 <span style="margin: 0 10px;">|</span>
@@ -293,9 +290,7 @@
     {# Footer #}
     <div class="footer-container">
         <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
-        {# Conditional Back to Dashboard link in footer #}
-        {% comment %} Assuming 'dashboard' is the name of the URL for the dashboard page {% endcomment %}
-        {% if request.resolver_match.url_name != 'dashboard' and request.resolver.url_name != 'login' %}
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
             <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
         {% endif %}
     </div>

@@ -1,9 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
 import os
-from PyInstaller.utils.hooks import collect_data_files, copy_metadata, get_package_paths
+from PyInstaller.utils.hooks import collect_data_files
 
 block_cipher = None
+
+# --- MANUALLY SPECIFY PATH TO WAITRESS ---
+# !!! IMPORTANT !!! REPLACE THIS WITH THE ACTUAL ABSOLUTE PATH FOUND VIA 'pip show waitress'
+# Example: r'C:\Users\arifa\Documents\DevProjects\crew_management_system\venv\Lib\site-packages\waitress'
+# First, activate your venv and run: pip show waitress
+# Then, copy the "Location:" path and append '\waitress' to it.
+waitress_package_path = r'C:\Users\arifa\Documents\DevProjects\crew_management_system\venv\Lib\site-packages\waitress' # <--- REPLACE THIS LINE WITH YOUR ACTUAL PATH
+
+
+# --- MANUALLY SPECIFY PATHS TO TEMPLATES ---
+# These paths are relative to your project root where the .spec file is.
+crew_management_app_path = 'crew_management' # Path to your crew_management app folder
+users_app_path = 'users' # Path to your users app folder
 
 
 a = Analysis(
@@ -11,14 +24,20 @@ a = Analysis(
     pathex=['.'], # Ensure this points to your project root where run_app.py and this spec file are
     binaries=[],
     datas=[
-        ('staticfiles', 'static_assets'), # Source: local 'staticfiles' folder, Dest: 'static_assets' inside bundle
-        (r'C:\Users\arifa\Documents\DevProjects\crew_management_system\venv\Lib\site-packages\waitress', 'waitress'), # Explicitly copy waitress package
+        # --- Static files (bundled read-only) ---
+        ('staticfiles', 'static_assets'), # Your collected static files
 
-        # --- NEW: Explicitly copy template directories ---
-        # Copy 'crew_management/templates' to 'crew_management/templates' inside the bundle
-        ('crew_management/templates', 'crew_management/templates'),
-        # Copy 'users/templates' to 'users/templates' inside the bundle
-        ('users/templates', 'users/templates'),
+        # --- Explicitly copy waitress package ---
+        # Source: Absolute path to your waitress installation
+        # Destination: 'waitress' subfolder inside the bundle's root
+        (waitress_package_path, 'waitress'),
+
+        # --- Explicitly copy template directories for each app ---
+        # Django's template loader (TEMPLATES['DIRS'] in settings.py) will look here.
+        # This copies 'crew_management/templates' to 'crew_management/templates' inside the bundle
+        (os.path.join(crew_management_app_path, 'templates'), os.path.join(crew_management_app_path, 'templates')),
+        # This copies 'users/templates' to 'users/templates' inside the bundle
+        (os.path.join(users_app_path, 'templates'), os.path.join(users_app_path, 'templates')),
     ],
     hiddenimports=[
         'django.contrib.auth',
@@ -29,7 +48,7 @@ a = Analysis(
         'django.contrib.staticfiles',
         'django.forms',
         'django.db.backends.sqlite3',
-        'waitress', # Keep waitress in hiddenimports too
+        'waitress', # Keep in hiddenimports too for robustness
         'dj_database_url',
         'whitenoise.middleware',
         'django.db.backends.signals',
@@ -43,19 +62,17 @@ a = Analysis(
         'mimetypes',
         'socket',
         'collections',
-        'http.server', # Keep http.server in hiddenimports as it's a standard lib module
+        'http.server',
         'ssl',
         'json',
+        'base64', # Common hidden import for PyInstaller with Python 3.11+
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
         '_tkinter', 'PyQt5', 'PyQt4', 'Tkinter',
-        'distutils',
-        'setuptools',
-        'test',
-        'unittest',
+        'distutils', 'setuptools', 'test', 'unittest',
     ],
     noarchive=False,
     optimize=0,
@@ -69,11 +86,11 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='CrewManagementSystem',
-    debug=False,
+    debug=False, # Set to False for production executable
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False, # Set to False for a windowed (no console) application
+    console=True, # Set to False for a windowed (no console) application
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
