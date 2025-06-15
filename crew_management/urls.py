@@ -80,4 +80,7 @@ urlpatterns = [
     path('appraisals/<int:pk>/', views.appraisal_detail, name='appraisal_detail'),
     path('appraisals/<int:pk>/edit/', views.appraisal_edit, name='appraisal_edit'),
     path('appraisals/<int:pk>/delete/', views.appraisal_delete, name='appraisal_delete'),
+
+    # --- Audit Log URL ---
+    path('audit-log/', views.audit_log_list, name='audit_log_list'),
 ]

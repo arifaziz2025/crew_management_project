@@ -210,14 +210,14 @@
         .edit-container {
             max-width: 800px;
         }
-        h1 { /* This h1 is specifically for the form title within the container */
+        h1 {
             color: var(--text-white);
             text-align: center;
             margin-bottom: 30px;
             border-bottom: none;
             padding-bottom: 15px;
         }
-        form p { /* Styles for Django form fields wrapped in <p> */
+        form p {
             margin-bottom: 15px;
             color: var(--text-light);
         }
@@ -332,7 +332,7 @@
             <h1>Edit Profile: {{ crew_member.first_name }} {{ crew_member.last_name }}</h1>
 
             <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
+                {% csrf_token %} {# Ensures CSRF protection for form submission #}
                 {{ form.as_p }}
                 <button type="submit" class="action-link-button">Save Changes</button>
             </form>
@@ -351,4 +351,3 @@
         {% endif %}
     </div>
 </body>
-</html>

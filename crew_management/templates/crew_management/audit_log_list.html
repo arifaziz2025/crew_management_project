@@ -1,0 +1,560 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        /* Base Colors */
+        :root {
+            --main-bg-dark: #1a1a2e;        /* Main page background */
+            --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
+            --border-color: #3a3a6a;        /* Borders and separators */
+            --text-light: #e0e0e0;          /* General light text */
+            --text-white: #ffffff;          /* Pure white for headings/important text */
+            --link-color: #8aff8a;          /* Green for primary links */
+            --button-bg: #4a4a7a;           /* Standard button background */
+            --button-hover-bg: #5a5a9a;     /* Standard button hover */
+            --messages-success: #4CAF50;
+            --messages-error: #f44336;
+            --messages-info: #2196F3;
+            --messages-warning: #ff9800;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--main-bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Top Utility Bar --- */
+        .top-utility-bar {
+            background-color: var(--main-bg-dark);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            font-size: 0.9em;
+            color: var(--text-light);
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
+            line-height: 1.2;
+        }
+
+        .top-utility-bar span,
+        .top-utility-bar .action-link-button {
+            vertical-align: middle;
+        }
+
+        .top-utility-bar .action-link-button {
+            padding: 5px 10px;
+            font-size: 0.8em;
+            margin-left: 15px;
+        }
+
+        /* --- HEADER STYLING --- */
+        .header-container {
+            background-color: var(--card-bg);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header-logo {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .header-branding {
+            text-align: center;
+            margin-bottom: 0;
+            width: 100%;
+        }
+        .header-branding h1 {
+            white-space: nowrap;
+            font-size: 2.2em;
+            color: var(--text-white);
+            margin: 0;
+            line-height: 1;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .header-subtitle {
+            font-size: 1.2em;
+            color: var(--link-color) !important;
+            margin-top: 5px;
+            line-height: 1;
+        }
+
+        @media (max-width: 768px) {
+            .top-utility-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+
+            .header-container { padding: 10px; }
+            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
+
+        /* --- FOOTER STYLING --- */
+        .footer-container {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .footer-copyright {
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: var(--text-light);
+        }
+        /* --- COMMON BUTTONS & LINKS --- */
+        .action-link-button {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .action-link-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- MESSAGES (Django) --- */
+        .messages {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 10px auto;
+            max-width: 900px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        .messages .success { background-color: var(--messages-success); }
+        .messages .error { background-color: var(--messages-error); }
+        .messages .info { background-color: var(--messages-info); }
+        .messages .warning { background-color: var(--messages-warning); }
+        .no-data { text-align: center; padding: 20px; color: var(--text-light); }
+
+        /* --- COMMON CONTAINER STYLES --- */
+        .container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            margin: 20px auto;
+            max-width: 95%; /* Adjust max-width for audit log table */
+            overflow-x: auto; /* Enable horizontal scrolling for table */
+        }
+
+        h1 {
+            color: var(--text-white);
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        /* --- Filter Form Styles --- */
+        .filter-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #333355; /* Slightly different background for filter area */
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            align-items: flex-end; /* Align buttons/inputs at the bottom */
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 150px; /* Ensure some minimum width for filters */
+            flex: 1; /* Allow flex growing */
+        }
+        .filter-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-light);
+            font-size: 0.9em;
+        }
+        .filter-form select,
+        .filter-form input[type="text"],
+        .filter-form input[type="date"] {
+            padding: 8px 10px;
+            border: 1px solid var(--button-bg);
+            border-radius: 4px;
+            background-color: var(--main-bg-dark);
+            color: var(--text-white);
+            font-size: 0.9em;
+        }
+        .filter-form button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+            white-space: nowrap; /* Prevent button text from wrapping */
+        }
+        .filter-form button[type="submit"] {
+            background-color: var(--link-color);
+            color: var(--main-bg-dark);
+        }
+        .filter-form button[type="submit"]:hover {
+            filter: brightness(90%);
+        }
+        .filter-form button[type="reset"] {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+        }
+        .filter-form button[type="reset"]:hover {
+            background-color: var(--button-hover-bg);
+        }
+
+        /* --- Table Styles --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #333355;
+            border: 1px solid #444477;
+            border-radius: 6px;
+            overflow: hidden;
+            min-width: 800px; /* Ensure table is wide enough for columns */
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #444477;
+            color: var(--text-light);
+            word-wrap: break-word; /* Allow long words to break */
+        }
+        th {
+            background-color: #4a4a7a;
+            color: var(--text-white);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        tr:nth-child(even) {
+            background-color: #2a2a4a;
+        }
+        tr:hover {
+            background-color: #3a3a6a;
+        }
+        td code {
+            background-color: #1a1a2e; /* Darker background for code/JSON */
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+            display: block; /* Make it a block for better readability */
+            white-space: pre-wrap; /* Preserve whitespace and wrap */
+            word-break: break-all; /* Break long words */
+        }
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-light);
+        }
+
+        /* --- Pagination Styles --- */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 30px;
+            gap: 10px;
+        }
+        .pagination a, .pagination span {
+            display: inline-block;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            text-decoration: none;
+            color: var(--link-color);
+            background-color: var(--card-bg);
+            transition: background-color 0.3s ease;
+        }
+        .pagination a:hover {
+            background-color: var(--button-hover-bg);
+        }
+        .pagination .current {
+            background-color: var(--link-color);
+            color: var(--main-bg-dark);
+            font-weight: bold;
+            pointer-events: none; /* Not clickable */
+        }
+        .pagination .disabled {
+            color: #888;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* --- Responsive Adjustments --- */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            .filter-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-group {
+                min-width: unset;
+                width: 100%;
+            }
+            .filter-form button {
+                width: 100%;
+                margin-top: 10px; /* Space between buttons when stacked */
+            }
+            table {
+                min-width: unset; /* Allow table to shrink */
+            }
+            th, td {
+                font-size: 0.8em;
+                padding: 8px 10px;
+            }
+            .pagination {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {# Top Utility Bar #}
+    <div class="top-utility-bar">
+        {% if request.user.is_authenticated %}
+            <span>Hello, {{ request.user.username }}!</span>
+            <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="action-link-button">Login</a>
+        {% endif %}
+    </div>
+
+    {# Header Container #}
+    <div class="header-container">
+        <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+        <div class="header-branding">
+            <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
+            <p class="header-subtitle">{{ title }}</p>
+        </div>
+    </div>
+
+    {# Django messages #}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    {# Main Content Area #}
+    <div class="main-content">
+        <div class="container">
+            <h1>{{ title }}</h1>
+
+            <form method="GET" class="filter-form">
+                <div class="filter-group">
+                    <label for="id_user">User:</label>
+                    <select id="id_user" name="user">
+                        <option value="">All Users</option>
+                        {% for user_obj in users_with_logs %}
+                            <option value="{{ user_obj.id }}" {% if user_obj.id|stringformat:"d" == selected_user_id %}selected{% endif %}>
+                                {{ user_obj.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="id_action_type">Action Type:</label>
+                    <select id="id_action_type" name="action_type">
+                        <option value="">All Types</option>
+                        {% for choice_value, choice_label in action_types_from_choices %}
+                            <option value="{{ choice_value }}" {% if choice_value == selected_action_type %}selected{% endif %}>
+                                {{ choice_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="id_model_name">Model:</label>
+                    <select id="id_model_name" name="model_name">
+                        <option value="">All Models</option>
+                        {% for model_name_obj in model_names_with_logs %}
+                            <option value="{{ model_name_obj }}" {% if model_name_obj == selected_model_name %}selected{% endif %}>
+                                {{ model_name_obj }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="id_start_date">Start Date:</label>
+                    <input type="date" id="id_start_date" name="start_date" value="{{ selected_start_date|default:'' }}">
+                </div>
+
+                <div class="filter-group">
+                    <label for="id_end_date">End Date:</label>
+                    <input type="date" id="id_end_date" name="end_date" value="{{ selected_end_date|default:'' }}">
+                </div>
+
+                <button type="submit" class="action-link-button">Apply Filters</button>
+                <button type="reset" class="action-link-button" onclick="window.location.href='{% url 'audit_log_list' %}';">Clear Filters</button>
+            </form>
+
+            {% if logs %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action Type</th>
+                            <th>Model</th>
+                            <th>Record ID</th>
+                            <th>IP Address</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                            <td>{{ log.user.username|default:"N/A" }}</td>
+                            <td>{{ log.get_action_type_display }}</td>
+                            <td>{{ log.model_name|default:"N/A" }}</td>
+                            <td>
+                                {% if log.model_name and log.record_id %}
+                                    {# Dynamically link to detail page if possible #}
+                                    {% comment %} This assumes a consistent URL naming convention like 'model_name_detail' {% endcomment %}
+                                    {% with detail_url_name=log.model_name|lower|add:"_detail" %}
+                                        {% if log.model_name == 'CrewMember' %}
+                                            <a href="{% url 'crew_profile_detail' pk=log.record_id %}">{{ log.record_id }}</a>
+                                        {% elif log.model_name == 'Principal' %}
+                                            <a href="{% url 'principal_detail' pk=log.record_id %}">{{ log.record_id }}</a>
+                                        {% elif log.model_name == 'Vessel' %}
+                                            <a href="{% url 'vessel_detail' pk=log.record_id %}">{{ log.record_id }}</a>
+                                        {# Add more conditions for other models if you want direct links from log #}
+                                        {% else %}
+                                            {{ log.record_id }}
+                                        {% endif %}
+                                    {% endwith %}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ log.ip_address|default:"N/A" }}</td>
+                            <td>
+                                {{ log.description|linebreaksbr }}
+                                {% if log.changes %}
+                                    <p><strong>Detailed Changes:</strong></p>
+                                    <code>{{ log.changes|json_script:"audit_changes" }}</code>
+                                    <script>
+                                        // A small script to pretty-print JSON changes if needed
+                                        const scriptTag = document.getElementById('audit_changes');
+                                        if (scriptTag) {
+                                            const data = JSON.parse(scriptTag.textContent);
+                                            scriptTag.textContent = JSON.stringify(data, null, 2);
+                                        }
+                                    </script>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {# Pagination Controls #}
+                <div class="pagination">
+                    {% if logs.has_previous %}
+                        <a href="?page={{ logs.previous_page_number }}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.action_type %}&action_type={{ request.GET.action_type }}{% endif %}{% if request.GET.model_name %}&model_name={{ request.GET.model_name }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">Previous</a>
+                    {% else %}
+                        <span class="disabled">Previous</span>
+                    {% endif %}
+
+                    <span class="current">
+                        Page {{ logs.number }} of {{ logs.paginator.num_pages }}.
+                    </span>
+
+                    {% if logs.has_next %}
+                        <a href="?page={{ logs.next_page_number }}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.action_type %}&action_type={{ request.GET.action_type }}{% endif %}{% if request.GET.model_name %}&model_name={{ request.GET.model_name }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">Next</a>
+                    {% else %}
+                        <span class="disabled">Next</span>
+                    {% endif %}
+                </div>
+
+            {% else %}
+                <p class="no-data">No audit log entries found matching the criteria.</p>
+            {% endif %}
+            
+        </div>
+    </div>
+
+    {# Footer #}
+    <div class="footer-container">
+        <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
+            <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>

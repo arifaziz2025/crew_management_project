@@ -327,6 +327,7 @@
             <span>Hello, {{ request.user.username }}!</span>
             <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
         {% else %}
+            {# Display login button, though typically dashboard is only for logged-in users #}
             <a href="{% url 'login' %}" class="action-link-button">Login</a>
         {% endif %}
     </div>
@@ -427,6 +428,7 @@
                     <a href="{% url 'vessel_list' %}">Manage Vessels</a>
                     <a href="/admin/">Go to Admin Panel</a>
                     <a href="{% url 'crew_create' %}">+ Add New Crew Member</a>
+                    <a href="{% url 'audit_log_list' %}" class="action-link-button">View Audit Log</a> {# NEW BUTTON #}
                 {% endif %}
             </div>
         </div>

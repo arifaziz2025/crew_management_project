@@ -11,6 +11,7 @@ import csv
 import io
 import datetime
 from django.utils import timezone
+import json # Make sure this is imported if not already
 
 # Corrected: Import User from django.contrib.auth.models
 from django.contrib.auth.models import User
@@ -19,7 +20,7 @@ from django.contrib.auth.models import User
 from .models import (
     CrewMember, Principal, Vessel, Document,
     ExperienceHistory, NextOfKin, CommunicationLog,
-    ProfessionalReference, Appraisal
+    ProfessionalReference, Appraisal, AuditLog # Ensure AuditLog is imported
 )
 
 # Import your forms (from forms.py)
@@ -33,6 +34,33 @@ from .forms import (
 def is_staff(user):
     return user.is_staff
 
+# NEW: Helper function to check if user is a superuser
+def is_superuser_only(user):
+    return user.is_superuser
+
+def create_audit_log(user, action_type, model_instance=None, description="", ip_address=None, changes=None):
+    """
+    Helper function to create an AuditLog entry.
+    """
+    model_name = model_instance.__class__.__name__ if model_instance else None
+    record_id = model_instance.pk if model_instance else None
+
+    # Get IP address from request if not provided
+    # Note: request object is not directly available here, but REMOTE_ADDR is often in request.META.
+    # For a comprehensive solution, consider a custom middleware to attach IP to request.user.
+    # For now, if called from a view, request.META.get('REMOTE_ADDR') is passed directly.
+    
+    AuditLog.objects.create(
+        user=user,
+        action_type=action_type,
+        timestamp=timezone.now(), # Ensure timestamp is explicitly set here
+        model_name=model_name,
+        record_id=record_id,
+        description=description,
+        ip_address=ip_address,
+        changes=changes
+    )
+
 def login_view(request):
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
@@ -40,6 +68,9 @@ def login_view(request):
             user = form.get_user()
             auth_login(request, user)
             messages.success(request, f"Welcome, {user.username}!")
+
+            # Log login via signal in apps.py, no direct call here
+            # (assuming apps.py signals are correctly set up)
 
             if user.is_staff:
                 return redirect('dashboard')
@@ -58,6 +89,7 @@ def login_view(request):
     return render(request, 'users/login.html', {'form': form})
 
 def logout_view(request):
+    # Log logout via signal in apps.py
     auth_logout(request)
     messages.info(request, "You have been logged out.")
     return redirect('login')
@@ -113,8 +145,15 @@ def crew_create(request):
     if request.method == 'POST':
         form = CrewMemberProfileForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            crew_member_instance = form.save()
             messages.success(request, "New Crew Member added successfully!")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=crew_member_instance,
+                description=f"Created Crew Member: {crew_member_instance.first_name} {crew_member_instance.last_name} (Code: {crew_member_instance.seafarer_code}).",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('crew_list')
         else:
             messages.error(request, "Error adding crew member. Please check the form.")
@@ -131,7 +170,6 @@ def crew_create(request):
 @login_required
 def crew_profile_detail(request, pk):
     crew_member = get_object_or_404(CrewMember, pk=pk)
-    # Check if the logged-in user is staff OR if their user object matches the crew_member's linked user.
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this profile.")
         return redirect('dashboard')
@@ -142,10 +180,51 @@ def crew_profile_detail(request, pk):
 def crew_profile_edit(request, pk):
     crew_member = get_object_or_404(CrewMember, pk=pk)
     if request.method == 'POST':
+        # Capture initial state for diffing
+        initial_data = {field.name: getattr(crew_member, field.name) for field in crew_member._meta.fields if field.name not in ['id', 'user', 'created_at', 'updated_at', 'profile_picture', 'blank_cheque_leaf_copy']}
+
         form = CrewMemberProfileForm(request.POST, request.FILES, instance=crew_member)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Profile for {crew_member.first_name} {crew_member.last_name} updated successfully!")
+
+            # Generate detailed changes for audit log
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'user', 'created_at', 'updated_at', 'profile_picture', 'blank_cheque_leaf_copy']:
+                    old_value = initial_data.get(field_name) # Retrieve old value
+                    # Handle Foreign Keys (display name instead of ID)
+                    if hasattr(form.fields[field_name], 'queryset') and form.fields[field_name].queryset.model in [Principal, Vessel]:
+                        old_obj = form.fields[field_name].queryset.model.objects.filter(pk=old_value).first()
+                        new_obj = form.fields[field_name].queryset.model.objects.filter(pk=new_value.pk).first() if new_value else None
+                        old_value_display = str(old_obj) if old_obj else 'None'
+                        new_value_display = str(new_obj) if new_obj else 'None'
+                    else:
+                        old_value_display = str(old_value)
+                        new_value_display = str(new_value)
+
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': old_value_display,
+                            'new': new_value_display
+                        }
+
+            description_parts = [f"Updated Crew Member: {updated_instance.first_name} {updated_instance.last_name} (Code: {updated_instance.seafarer_code})."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('crew_profile_detail', pk=crew_member.pk)
         else:
             messages.error(request, "Please correct the errors in the form.")
@@ -165,14 +244,19 @@ def crew_profile_edit(request, pk):
 @user_passes_test(is_staff)
 def crew_delete(request, pk):
     crew_member = get_object_or_404(CrewMember, pk=pk)
-    # Allowing GET for now to match current JS behavior, but POST is preferred for deletions.
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=crew_member,
+            description=f"Deleted Crew Member: {crew_member.first_name} {crew_member.last_name} (Code: {crew_member.seafarer_code}).",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         crew_member.delete()
         messages.success(request, f"Crew member '{crew_member.first_name} {crew_member.last_name}' deleted successfully.")
     else:
         messages.warning(request, "Deletion requires a POST request. Please confirm deletion via the provided button/form.")
     return redirect('crew_list')
-
 
 @login_required
 @user_passes_test(is_staff)
@@ -206,7 +290,7 @@ def import_crew_csv(request):
                         try:
                             return datetime.datetime.strptime(date_str, '%d-%m-%Y').date()
                         except ValueError:
-                            errors.append(f"Row {row_num}: Invalid '{field_name}' date format ('{date_str}'). Expected YEAR-MM-DD or DD-MM-YYYY.")
+                            errors.append(f"Row {row_num}: Invalid '{field_name}' date format ('{date_str}'). Expected YYYY-MM-DD or DD-MM-YYYY.")
                             return None
                 return None
 
@@ -304,8 +388,23 @@ def import_crew_csv(request):
                         )
                         if created:
                             imported_count += 1
+                            create_audit_log(
+                                request.user,
+                                'CREATE',
+                                model_instance=crew_obj,
+                                description=f"Imported new Crew Member: {crew_obj.first_name} {crew_obj.last_name} (Code: {crew_obj.seafarer_code}).",
+                                ip_address=request.META.get('REMOTE_ADDR')
+                            )
                         else:
                             updated_count += 1
+                            create_audit_log(
+                                request.user,
+                                'UPDATE',
+                                model_instance=crew_obj,
+                                description=f"Updated existing Crew Member via import: {crew_obj.first_name} {crew_obj.last_name} (Code: {crew_obj.seafarer_code}).",
+                                # For import, detailed changes are harder to log without tracking previous state for each row
+                                ip_address=request.META.get('REMOTE_ADDR')
+                            )
                     else:
                         error_messages = "; ".join([f"{k}: {', '.join(v)}" for k, v in temp_form.errors.items()])
                         errors.append(f"Row {row_num}: Validation error for '{seafarer_code}': {error_messages}. Row content: {row[:5]}...")
@@ -405,6 +504,12 @@ def export_crew_csv(request):
             crew.current_vessel.name if crew.current_vessel else '',
             crew.working_gear_remarks,
         ])
+    create_audit_log(
+        request.user,
+        'EXPORT',
+        description=f"Exported Crew Members CSV.",
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
     return response
 
 # --- Principal Management Views ---
@@ -420,8 +525,15 @@ def principal_create(request):
     if request.method == 'POST':
         form = PrincipalForm(request.POST)
         if form.is_valid():
-            form.save()
+            principal_instance = form.save()
             messages.success(request, "Principal added successfully!")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=principal_instance,
+                description=f"Created Principal: {principal_instance.name}.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('principal_list')
         else:
             messages.error(request, "Error adding principal. Please check the form.")
@@ -446,10 +558,38 @@ def principal_detail(request, pk):
 def principal_edit(request, pk):
     principal = get_object_or_404(Principal, pk=pk)
     if request.method == 'POST':
+        initial_data = {field.name: getattr(principal, field.name) for field in principal._meta.fields if field.name not in ['id', 'remarks']} # Exclude remarks for simpler diff
         form = PrincipalForm(request.POST, instance=principal)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Principal '{principal.name}' updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'remarks']:
+                    old_value = initial_data.get(field_name)
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': str(old_value),
+                            'new': str(new_value)
+                        }
+
+            description_parts = [f"Updated Principal: {updated_instance.name}."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('principal_detail', pk=principal.pk)
         else:
             messages.error(request, "Error updating principal. Please check the form.")
@@ -476,6 +616,13 @@ def principal_delete(request, pk):
         return redirect('principal_list')
 
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=principal,
+            description=f"Deleted Principal: {principal.name}.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         principal.delete()
         messages.success(request, f"Principal '{principal.name}' deleted successfully.")
     else:
@@ -542,8 +689,22 @@ def import_principal_csv(request):
                         )
                         if created:
                             imported_count += 1
+                            create_audit_log(
+                                request.user,
+                                'CREATE',
+                                model_instance=principal,
+                                description=f"Imported new Principal: {principal.name}.",
+                                ip_address=request.META.get('REMOTE_ADDR')
+                            )
                         else:
                             updated_count += 1
+                            create_audit_log(
+                                request.user,
+                                'UPDATE',
+                                model_instance=principal,
+                                description=f"Updated existing Principal via import: {principal.name}.",
+                                ip_address=request.META.get('REMOTE_ADDR')
+                            )
                     else:
                         error_messages = "; ".join([f"{k}: {', '.join(v)}" for k, v in temp_form.errors.items()])
                         errors.append(f"Row {row_num}: Validation error for '{principal_name}': {error_messages}. Row content: {row[:5]}...")
@@ -591,6 +752,12 @@ def export_principal_csv(request):
             principal.address if principal.address else '',
             principal.remarks if principal.remarks else '',
         ])
+    create_audit_log(
+        request.user,
+        'EXPORT',
+        description=f"Exported Principals CSV.",
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
     return response
 
 # --- Vessel Management Views ---
@@ -606,8 +773,15 @@ def vessel_create(request):
     if request.method == 'POST':
         form = VesselForm(request.POST)
         if form.is_valid():
-            form.save()
+            vessel_instance = form.save()
             messages.success(request, "Vessel added successfully!")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=vessel_instance,
+                description=f"Created Vessel: {vessel_instance.name} (IMO: {vessel_instance.imo_number}).",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('vessel_list')
         else:
             messages.error(request, "Error adding vessel. Please check the form.")
@@ -633,10 +807,45 @@ def vessel_detail(request, pk):
 def vessel_edit(request, pk):
     vessel = get_object_or_404(Vessel, pk=pk)
     if request.method == 'POST':
+        initial_data = {field.name: getattr(vessel, field.name) for field in vessel._meta.fields if field.name not in ['id']}
         form = VesselForm(request.POST, instance=vessel)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Vessel '{vessel.name}' updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id']:
+                    old_value = initial_data.get(field_name)
+                    if field_name == 'associated_principal': # Handle FK
+                        old_value_display = str(Principal.objects.filter(pk=old_value).first()) if old_value else 'None'
+                        new_value_display = str(new_value) if new_value else 'None'
+                    else:
+                        old_value_display = str(old_value)
+                        new_value_display = str(new_value)
+
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': old_value_display,
+                            'new': new_value_display
+                        }
+
+            description_parts = [f"Updated Vessel: {updated_instance.name} (IMO: {updated_instance.imo_number})."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('vessel_detail', pk=vessel.pk)
         else:
             messages.error(request, "Error updating vessel. Please check the form.")
@@ -661,6 +870,13 @@ def vessel_delete(request, pk):
         return redirect('vessel_list')
 
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=vessel,
+            description=f"Deleted Vessel: {vessel.name} (IMO: {vessel.imo_number}).",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         vessel.delete()
         messages.success(request, f"Vessel '{vessel.name}' deleted successfully.")
     else:
@@ -730,8 +946,22 @@ def import_vessel_csv(request):
                         )
                         if created:
                             imported_count += 1
+                            create_audit_log(
+                                request.user,
+                                'CREATE',
+                                model_instance=vessel,
+                                description=f"Imported new Vessel: {vessel.name} (IMO: {vessel.imo_number}).",
+                                ip_address=request.META.get('REMOTE_ADDR')
+                            )
                         else:
                             updated_count += 1
+                            create_audit_log(
+                                request.user,
+                                'UPDATE',
+                                model_instance=vessel,
+                                description=f"Updated existing Vessel via import: {vessel.name} (IMO: {vessel.imo_number}).",
+                                ip_address=request.META.get('REMOTE_ADDR')
+                            )
                     else:
                         error_messages = "; ".join([f"{k}: {', '.join(v)}" for k, v in temp_form.errors.items()])
                         errors.append(f"Row {row_num}: Validation error for '{vessel_name}': {error_messages}. Row content: {row[:5]}...")
@@ -778,6 +1008,12 @@ def export_vessel_csv(request):
             vessel.flag_state if vessel.flag_state else '',
             vessel.associated_principal.name if vessel.associated_principal else '',
         ])
+    create_audit_log(
+        request.user,
+        'EXPORT',
+        description=f"Exported Vessels CSV.",
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
     return response
 
 # --- Document Management Views ---
@@ -789,7 +1025,6 @@ def crew_document_list(request, pk):
         messages.error(request, "You are not authorized to view documents for this profile.")
         return redirect('dashboard')
     documents = Document.objects.filter(crew_member=crew_member).order_by('document_type', 'expiry_date')
-    # Corrected template path
     return render(request, 'crew_management/document_list_for_crew.html', {'crew_member': crew_member, 'documents': documents})
 
 @login_required
@@ -803,6 +1038,13 @@ def crew_document_add(request, pk):
             document.crew_member = crew_member
             document.save()
             messages.success(request, f"Document '{document.document_name}' added successfully for {crew_member.first_name}.")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=document,
+                description=f"Added Document '{document.document_name}' for {crew_member.first_name} {crew_member.last_name}.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('crew_document_list', pk=crew_member.pk)
         else:
             messages.error(request, "Error adding document. Please check the form.")
@@ -815,7 +1057,6 @@ def crew_document_add(request, pk):
         'title': f"Add Document for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Add Document",
     }
-    # Corrected template path
     return render(request, 'crew_management/document_form.html', context)
 
 
@@ -826,7 +1067,6 @@ def document_detail(request, pk):
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this document.")
         return redirect('dashboard')
-    # Corrected template path
     return render(request, 'crew_management/document_detail.html', {'document': document, 'crew_member': crew_member})
 
 
@@ -836,10 +1076,47 @@ def document_edit(request, pk):
     document = get_object_or_404(Document, pk=pk)
     crew_member = document.crew_member
     if request.method == 'POST':
+        # Initial data capture (excluding file fields for simpler diffing)
+        initial_data = {field.name: getattr(document, field.name) for field in document._meta.fields if field.name not in ['id', 'crew_member', 'document_file', 'created_at', 'updated_at']}
+
         form = DocumentForm(request.POST, request.FILES, instance=document)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Document '{document.document_name}' updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member', 'document_file', 'created_at', 'updated_at']:
+                    old_value = initial_data.get(field_name)
+                    # For Date fields, ensure comparison is type-consistent
+                    if isinstance(old_value, datetime.date) and isinstance(new_value, datetime.date):
+                        pass # direct comparison is fine
+                    elif isinstance(old_value, models.fields.files.ImageFieldFile) or isinstance(new_value, models.fields.files.ImageFieldFile):
+                        # File fields require special handling, might just log "file uploaded/changed"
+                        # For now, if file field is not in 'excluded', it will be compared as path
+                        pass
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': str(old_value),
+                            'new': str(new_value)
+                        }
+
+            description_parts = [f"Updated Document '{updated_instance.document_name}' for {crew_member.first_name} {crew_member.last_name}."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('document_detail', pk=document.pk)
         else:
             messages.error(request, "Error updating document. Please check the form.")
@@ -853,7 +1130,6 @@ def document_edit(request, pk):
         'title': f"Edit Document: {document.document_name}",
         'button_text': "Save Changes",
     }
-    # Corrected template path
     return render(request, 'crew_management/document_form.html', context)
 
 
@@ -863,6 +1139,13 @@ def document_delete(request, pk):
     document = get_object_or_404(Document, pk=pk)
     crew_pk = document.crew_member.pk
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=document,
+            description=f"Deleted Document '{document.document_name}' for {document.crew_member.first_name} {document.crew_member.last_name}.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         document.delete()
         messages.success(request, f"Document '{document.document_name}' deleted successfully.")
     else:
@@ -873,20 +1156,19 @@ def document_delete(request, pk):
 # --- Experience History Management Views ---
 
 @login_required
-def crew_experience_list(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def crew_experience_list(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this profile's experience history.")
         return redirect('dashboard')
     experiences = ExperienceHistory.objects.filter(crew_member=crew_member).order_by('-sign_on_date')
-    # Corrected template path
     return render(request, 'crew_management/experience_list_for_crew.html', {'crew': crew_member, 'experiences': experiences})
 
 
 @login_required
 @user_passes_test(is_staff)
-def experience_add(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def experience_add(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if request.method == 'POST':
         form = ExperienceHistoryForm(request.POST)
         if form.is_valid():
@@ -894,6 +1176,13 @@ def experience_add(request, crew_pk): # Corrected to crew_pk
             experience.crew_member = crew_member
             experience.save()
             messages.success(request, f"Experience record added successfully for {crew_member.first_name}.")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=experience,
+                description=f"Added Experience record for {crew_member.first_name} {crew_member.last_name} on vessel '{experience.vessel_name}'.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('crew_experience_list', crew_pk=crew_member.pk)
         else:
             messages.error(request, "Error adding experience record. Please check the form.")
@@ -906,7 +1195,6 @@ def experience_add(request, crew_pk): # Corrected to crew_pk
         'title': f"Add Experience for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Add Record",
     }
-    # Corrected template path
     return render(request, 'crew_management/experience_form.html', context)
 
 
@@ -917,7 +1205,6 @@ def experience_detail(request, pk):
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this experience record.")
         return redirect('dashboard')
-    # Corrected template path
     return render(request, 'crew_management/experience_detail.html', {'experience': experience, 'crew': crew_member})
 
 
@@ -927,10 +1214,38 @@ def experience_edit(request, pk):
     experience = get_object_or_404(ExperienceHistory, pk=pk)
     crew_member = experience.crew_member
     if request.method == 'POST':
+        initial_data = {field.name: getattr(experience, field.name) for field in experience._meta.fields if field.name not in ['id', 'crew_member']}
         form = ExperienceHistoryForm(request.POST, instance=experience)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Experience record for {experience.vessel_name} updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member']:
+                    old_value = initial_data.get(field_name)
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': str(old_value),
+                            'new': str(new_value)
+                        }
+
+            description_parts = [f"Updated Experience record for {crew_member.first_name} {crew_member.last_name} on vessel '{updated_instance.vessel_name}'."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('experience_detail', pk=experience.pk)
         else:
             messages.error(request, "Error updating experience record. Please check the form.")
@@ -944,7 +1259,6 @@ def experience_edit(request, pk):
         'title': f"Edit Experience for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Save Changes",
     }
-    # Corrected template path
     return render(request, 'crew_management/experience_form.html', context)
 
 
@@ -954,6 +1268,13 @@ def experience_delete(request, pk):
     experience = get_object_or_404(ExperienceHistory, pk=pk)
     crew_pk = experience.crew_member.pk
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=experience,
+            description=f"Deleted Experience record for {experience.crew_member.first_name} {experience.crew_member.last_name} on vessel '{experience.vessel_name}'.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         experience.delete()
         messages.success(request, "Experience record deleted successfully.")
     else:
@@ -964,20 +1285,19 @@ def experience_delete(request, pk):
 # --- Next of Kin Management Views ---
 
 @login_required
-def crew_nextofkin_list(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def crew_nextofkin_list(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this profile's next of kin records.")
         return redirect('dashboard')
     next_of_kins = NextOfKin.objects.filter(crew_member=crew_member).order_by('full_name')
-    # Corrected template path
     return render(request, 'crew_management/nextofkin_list_for_crew.html', {'crew': crew_member, 'next_of_kins': next_of_kins})
 
 
 @login_required
 @user_passes_test(is_staff)
-def nextofkin_add(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def nextofkin_add(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if request.method == 'POST':
         form = NextOfKinForm(request.POST, request.FILES)
         if form.is_valid():
@@ -985,6 +1305,13 @@ def nextofkin_add(request, crew_pk): # Corrected to crew_pk
             nextofkin.crew_member = crew_member
             nextofkin.save()
             messages.success(request, f"Next of Kin record added successfully for {crew_member.first_name}.")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=nextofkin,
+                description=f"Added Next of Kin '{nextofkin.full_name}' for {crew_member.first_name} {crew_member.last_name}.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('crew_nextofkin_list', crew_pk=crew_member.pk)
         else:
             messages.error(request, "Error adding Next of Kin record. Please check the form.")
@@ -997,7 +1324,6 @@ def nextofkin_add(request, crew_pk): # Corrected to crew_pk
         'title': f"Add Next of Kin for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Add Record",
     }
-    # Corrected template path
     return render(request, 'crew_management/nextofkin_form.html', context)
 
 
@@ -1008,7 +1334,6 @@ def nextofkin_detail(request, pk):
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this next of kin record.")
         return redirect('dashboard')
-    # Corrected template path
     return render(request, 'crew_management/nextofkin_detail.html', {'nextofkin': nextofkin, 'crew': crew_member})
 
 
@@ -1018,10 +1343,38 @@ def nextofkin_edit(request, pk):
     nextofkin = get_object_or_404(NextOfKin, pk=pk)
     crew_member = nextofkin.crew_member
     if request.method == 'POST':
+        initial_data = {field.name: getattr(nextofkin, field.name) for field in nextofkin._meta.fields if field.name not in ['id', 'crew_member', 'cnic_copy']}
         form = NextOfKinForm(request.POST, request.FILES, instance=nextofkin)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Next of Kin record for {nextofkin.full_name} updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member', 'cnic_copy']:
+                    old_value = initial_data.get(field_name)
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': str(old_value),
+                            'new': str(new_value)
+                        }
+
+            description_parts = [f"Updated Next of Kin '{updated_instance.full_name}' for {crew_member.first_name} {crew_member.last_name}."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('nextofkin_detail', pk=nextofkin.pk)
         else:
             messages.error(request, "Error updating Next of Kin record. Please check the form.")
@@ -1035,7 +1388,6 @@ def nextofkin_edit(request, pk):
         'title': f"Edit Next of Kin for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Save Changes",
     }
-    # Corrected template path
     return render(request, 'crew_management/nextofkin_form.html', context)
 
 
@@ -1045,6 +1397,13 @@ def nextofkin_delete(request, pk):
     nextofkin = get_object_or_404(NextOfKin, pk=pk)
     crew_pk = nextofkin.crew_member.pk
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=nextofkin,
+            description=f"Deleted Next of Kin '{nextofkin.full_name}' for {nextofkin.crew_member.first_name} {nextofkin.crew_member.last_name}.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         nextofkin.delete()
         messages.success(request, "Next of Kin record deleted successfully.")
     else:
@@ -1055,20 +1414,19 @@ def nextofkin_delete(request, pk):
 # --- Communication Log Management Views ---
 
 @login_required
-def crew_communication_log_list(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def crew_communication_log_list(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this profile's communication logs.")
         return redirect('dashboard')
     logs = CommunicationLog.objects.filter(crew_member=crew_member).order_by('-date')
-    # Corrected template path
     return render(request, 'crew_management/communicationlog_list_for_crew.html', {'crew': crew_member, 'logs': logs})
 
 
 @login_required
 @user_passes_test(is_staff)
-def communicationlog_add(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def communicationlog_add(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if request.method == 'POST':
         form = CommunicationLogForm(request.POST)
         if form.is_valid():
@@ -1077,6 +1435,13 @@ def communicationlog_add(request, crew_pk): # Corrected to crew_pk
             log.user_name = request.user.username
             log.save()
             messages.success(request, f"Communication log added successfully for {crew_member.first_name}.")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=log,
+                description=f"Added Communication Log for {crew_member.first_name} {crew_member.last_name} (Purpose: {log.purpose_of_call}).",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('crew_communication_log_list', crew_pk=crew_member.pk)
         else:
             messages.error(request, "Error adding communication log. Please check the form.")
@@ -1089,7 +1454,6 @@ def communicationlog_add(request, crew_pk): # Corrected to crew_pk
         'title': f"Add Communication Log for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Add Log Entry",
     }
-    # Corrected template path
     return render(request, 'crew_management/communicationlog_form.html', context)
 
 
@@ -1100,7 +1464,6 @@ def communicationlog_detail(request, pk):
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this communication log.")
         return redirect('dashboard')
-    # Corrected template path
     return render(request, 'crew_management/communicationlog_detail.html', {'log': log, 'crew': crew_member})
 
 
@@ -1110,10 +1473,38 @@ def communicationlog_edit(request, pk):
     log = get_object_or_404(CommunicationLog, pk=pk)
     crew_member = log.crew_member
     if request.method == 'POST':
+        initial_data = {field.name: getattr(log, field.name) for field in log._meta.fields if field.name not in ['id', 'crew_member', 'user_name', 'date']} # Exclude auto/read-only fields
         form = CommunicationLogForm(request.POST, instance=log)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Communication log for {log.contact_person_name} updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member', 'user_name', 'date']:
+                    old_value = initial_data.get(field_name)
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': str(old_value),
+                            'new': str(new_value)
+                        }
+
+            description_parts = [f"Updated Communication Log for {crew_member.first_name} {crew_member.last_name} (Contact: {updated_instance.contact_person_name})."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('communicationlog_detail', pk=log.pk)
         else:
             messages.error(request, "Error updating communication log. Please check the form.")
@@ -1127,7 +1518,6 @@ def communicationlog_edit(request, pk):
         'title': f"Edit Communication Log for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Save Changes",
     }
-    # Corrected template path
     return render(request, 'crew_management/communicationlog_form.html', context)
 
 
@@ -1137,6 +1527,13 @@ def communicationlog_delete(request, pk):
     log = get_object_or_404(CommunicationLog, pk=pk)
     crew_pk = log.crew_member.pk
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=log,
+            description=f"Deleted Communication Log for {log.crew_member.first_name} {log.crew_member.last_name} (Purpose: {log.purpose_of_call}).",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         log.delete()
         messages.success(request, "Communication log entry deleted successfully.")
     else:
@@ -1147,20 +1544,19 @@ def communicationlog_delete(request, pk):
 # --- Professional Reference Management Views ---
 
 @login_required
-def crew_professional_reference_list(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def crew_professional_reference_list(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this profile's professional references.")
         return redirect('dashboard')
     references = ProfessionalReference.objects.filter(crew_member=crew_member).order_by('-date')
-    # Corrected template path
     return render(request, 'crew_management/professionalreference_list_for_crew.html', {'crew': crew_member, 'references': references})
 
 
 @login_required
 @user_passes_test(is_staff)
-def professionalreference_add(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def professionalreference_add(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if request.method == 'POST':
         form = ProfessionalReferenceForm(request.POST)
         if form.is_valid():
@@ -1168,6 +1564,13 @@ def professionalreference_add(request, crew_pk): # Corrected to crew_pk
             reference.crew_member = crew_member
             reference.save()
             messages.success(request, f"Professional reference added successfully for {crew_member.first_name}.")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=reference,
+                description=f"Added Professional Reference from '{reference.company_name}' for {crew_member.first_name} {crew_member.last_name}.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('crew_professional_reference_list', crew_pk=crew_member.pk)
         else:
             messages.error(request, "Error adding professional reference. Please check the form.")
@@ -1180,7 +1583,6 @@ def professionalreference_add(request, crew_pk): # Corrected to crew_pk
         'title': f"Add Professional Reference for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Add Reference",
     }
-    # Corrected template path
     return render(request, 'crew_management/professionalreference_form.html', context)
 
 
@@ -1191,7 +1593,6 @@ def professionalreference_detail(request, pk):
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this professional reference.")
         return redirect('dashboard')
-    # Corrected template path
     return render(request, 'crew_management/professionalreference_detail.html', {'reference': reference, 'crew': crew_member})
 
 
@@ -1201,10 +1602,38 @@ def professionalreference_edit(request, pk):
     reference = get_object_or_404(ProfessionalReference, pk=pk)
     crew_member = reference.crew_member
     if request.method == 'POST':
+        initial_data = {field.name: getattr(reference, field.name) for field in reference._meta.fields if field.name not in ['id', 'crew_member', 'date']}
         form = ProfessionalReferenceForm(request.POST, instance=reference)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Professional reference for {reference.contact_person} updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member', 'date']:
+                    old_value = initial_data.get(field_name)
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': str(old_value),
+                            'new': str(new_value)
+                        }
+
+            description_parts = [f"Updated Professional Reference for {crew_member.first_name} {crew_member.last_name} (Contact: {updated_instance.contact_person})."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('professionalreference_detail', pk=reference.pk)
         else:
             messages.error(request, "Error updating professional reference. Please check the form.")
@@ -1218,7 +1647,6 @@ def professionalreference_edit(request, pk):
         'title': f"Edit Professional Reference for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Save Changes",
     }
-    # Corrected template path
     return render(request, 'crew_management/professionalreference_form.html', context)
 
 
@@ -1228,6 +1656,13 @@ def professionalreference_delete(request, pk):
     reference = get_object_or_404(ProfessionalReference, pk=pk)
     crew_pk = reference.crew_member.pk
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=reference,
+            description=f"Deleted Professional Reference from '{reference.company_name}' for {reference.crew_member.first_name} {reference.crew_member.last_name}.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         reference.delete()
         messages.success(request, "Professional reference deleted successfully.")
     else:
@@ -1238,20 +1673,19 @@ def professionalreference_delete(request, pk):
 # --- Appraisal Management Views ---
 
 @login_required
-def crew_appraisal_list(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def crew_appraisal_list(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this profile's appraisals.")
         return redirect('dashboard')
     appraisals = Appraisal.objects.filter(crew_member=crew_member).order_by('-evaluation_date')
-    # Corrected template path
     return render(request, 'crew_management/appraisal_list_for_crew.html', {'crew': crew_member, 'appraisals': appraisals})
 
 
 @login_required
 @user_passes_test(is_staff)
-def appraisal_add(request, crew_pk): # Corrected to crew_pk
-    crew_member = get_object_or_404(CrewMember, pk=crew_pk) # Corrected to crew_pk
+def appraisal_add(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
     if request.method == 'POST':
         form = AppraisalForm(request.POST)
         if form.is_valid():
@@ -1259,6 +1693,13 @@ def appraisal_add(request, crew_pk): # Corrected to crew_pk
             appraisal.crew_member = crew_member
             appraisal.save()
             messages.success(request, f"Appraisal added successfully for {crew_member.first_name}.")
+            create_audit_log(
+                request.user,
+                'CREATE',
+                model_instance=appraisal,
+                description=f"Added Appraisal for {crew_member.first_name} {crew_member.last_name} on vessel '{appraisal.vessel.name if appraisal.vessel else 'N/A'}'.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
             return redirect('crew_appraisal_list', crew_pk=crew_member.pk)
         else:
             messages.error(request, "Error adding appraisal. Please check the form.")
@@ -1271,7 +1712,6 @@ def appraisal_add(request, crew_pk): # Corrected to crew_pk
         'title': f"Add Appraisal for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Add Appraisal",
     }
-    # Corrected template path
     return render(request, 'crew_management/appraisal_form.html', context)
 
 
@@ -1282,7 +1722,6 @@ def appraisal_detail(request, pk):
     if not request.user.is_staff and (not crew_member.user or crew_member.user != request.user):
         messages.error(request, "You are not authorized to view this appraisal.")
         return redirect('dashboard')
-    # Corrected template path
     return render(request, 'crew_management/appraisal_detail.html', {'appraisal': appraisal, 'crew': crew_member})
 
 
@@ -1292,10 +1731,45 @@ def appraisal_edit(request, pk):
     appraisal = get_object_or_404(Appraisal, pk=pk)
     crew_member = appraisal.crew_member
     if request.method == 'POST':
+        initial_data = {field.name: getattr(appraisal, field.name) for field in appraisal._meta.fields if field.name not in ['id', 'crew_member']}
         form = AppraisalForm(request.POST, instance=appraisal)
         if form.is_valid():
-            form.save()
+            updated_instance = form.save()
             messages.success(request, f"Appraisal for {appraisal.seafarer_name} updated successfully!")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member']:
+                    old_value = initial_data.get(field_name)
+                    if field_name == 'vessel': # Handle FK for vessel
+                        old_value_display = str(Vessel.objects.filter(pk=old_value).first()) if old_value else 'None'
+                        new_value_display = str(new_value) if new_value else 'None'
+                    else:
+                        old_value_display = str(old_value)
+                        new_value_display = str(new_value)
+
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': old_value_display,
+                            'new': new_value_display
+                        }
+
+            description_parts = [f"Updated Appraisal for {crew_member.first_name} {crew_member.last_name} on vessel '{updated_instance.vessel.name if updated_instance.vessel else 'N/A'}'. Estimated score: {updated_instance.overall_score_obtained}/{updated_instance.total_score}."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user,
+                'UPDATE',
+                model_instance=updated_instance,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
             return redirect('appraisal_detail', pk=appraisal.pk)
         else:
             messages.error(request, "Error updating appraisal. Please check the form.")
@@ -1309,7 +1783,6 @@ def appraisal_edit(request, pk):
         'title': f"Edit Appraisal for {crew_member.first_name} {crew_member.last_name}",
         'button_text': "Save Changes",
     }
-    # Corrected template path
     return render(request, 'crew_management/appraisal_form.html', context)
 
 
@@ -1319,8 +1792,86 @@ def appraisal_delete(request, pk):
     appraisal = get_object_or_404(Appraisal, pk=pk)
     crew_pk = appraisal.crew_member.pk
     if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user,
+            'DELETE',
+            model_instance=appraisal,
+            description=f"Deleted Appraisal for {appraisal.crew_member.first_name} {appraisal.crew_member.last_name} on vessel '{appraisal.vessel.name if appraisal.vessel else 'N/A'}'.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
         appraisal.delete()
         messages.success(request, "Appraisal record deleted successfully.")
     else:
         messages.warning(request, "Deletion requires a POST request.")
     return redirect('crew_appraisal_list', crew_pk=crew_pk)
+
+# --- Audit Log View (Access restricted to Superusers) ---
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger # For pagination
+from django.db.models import F, Q # For F-expressions and Q-objects
+
+@login_required
+# REMOVE @user_passes_test(is_superuser_only) from here
+def audit_log_list(request):
+    # Manual check for superuser access
+    if not request.user.is_superuser:
+        messages.error(request, "You are not authorized to view the Audit Log. Only superusers can access this feature.")
+        return redirect('dashboard') # Redirect to dashboard instead of login page
+
+    logs = AuditLog.objects.all()
+
+    # --- Filtering Logic (remains the same) ---
+    user_id = request.GET.get('user')
+    action_type = request.GET.get('action_type')
+    model_name = request.GET.get('model_name')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+
+    if user_id:
+        logs = logs.filter(user_id=user_id)
+    if action_type:
+        logs = logs.filter(action_type=action_type)
+    if model_name:
+        logs = logs.filter(model_name=model_name)
+    if start_date_str:
+        try:
+            start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            logs = logs.filter(timestamp__gte=start_date)
+        except ValueError:
+            messages.error(request, "Invalid start date format. Use YYYY-MM-DD.")
+    if end_date_str:
+        try:
+            end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            logs = logs.filter(timestamp__lt=end_date + datetime.timedelta(days=1))
+        except ValueError:
+            messages.error(request, "Invalid end date format. Use YYYY-MM-DD.")
+
+    logs = logs.order_by('-timestamp')
+
+    # --- Pagination (remains the same) ---
+    paginator = Paginator(logs, 25)
+    page = request.GET.get('page')
+    try:
+        logs_paged = paginator.page(page)
+    except PageNotAnInteger:
+        logs_paged = paginator.page(1)
+    except EmptyPage:
+        logs_paged = paginator.page(paginator.num_pages)
+
+    # Prepare filter options for the template (remains the same)
+    users_with_logs = User.objects.filter(auditlog__isnull=False).distinct().order_by('username')
+    action_types_from_choices = AuditLog.ACTION_CHOICES
+    model_names_with_logs = AuditLog.objects.values_list('model_name', flat=True).distinct().exclude(model_name__isnull=True).order_by('model_name')
+
+    context = {
+        'logs': logs_paged,
+        'users_with_logs': users_with_logs,
+        'action_types_from_choices': action_types_from_choices,
+        'model_names_with_logs': model_names_with_logs,
+        'selected_user_id': user_id,
+        'selected_action_type': action_type,
+        'selected_model_name': model_name,
+        'selected_start_date': start_date_str,
+        'selected_end_date': end_date_str,
+        'title': "System Audit Log"
+    }
+    return render(request, 'crew_management/audit_log_list.html', context)

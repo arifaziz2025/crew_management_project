@@ -4,11 +4,12 @@ from django.db import models
 from django.utils import timezone
 from datetime import date
 from django.contrib.auth.models import User
+import json # Ensure this is imported for JSONField
 
 # Helper function to calculate age from date of birth
 def calculate_age(dob):
     today = date.today()
-    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, today.day))
 
 # Helper function to calculate total experience in YYMMDD format
 def calculate_experience(sign_on_date, sign_off_date):
@@ -184,17 +185,15 @@ class ExperienceHistory(models.Model):
     sign_off_date = models.DateField()
     port_of_sign_off = models.CharField(max_length=100, blank=True, null=True)
 
-    # Calculated Properties (not stored in DB, generated when accessed)
     @property
     def total_experience(self):
-        # Calculates total experience in YYMMDD based on sign_on_date and sign_off_date
         if self.sign_on_date and self.sign_off_date:
             delta = self.sign_off_date - self.sign_on_date
             total_days = delta.days
 
             years = total_days // 365
             remaining_days_after_years = total_days % 365
-            months = remaining_days_after_years // 30 # Approximate months
+            months = remaining_days_after_years // 30
             days = remaining_days_after_years % 30
 
             return f"{years:02d}Y{months:02d}M{days:02d}D"
@@ -206,7 +205,7 @@ class ExperienceHistory(models.Model):
     class Meta:
         verbose_name = "Experience Record"
         verbose_name_plural = "Experience History"
-        ordering = ['-sign_on_date'] # Issue Fix: Changed from -start_date
+        ordering = ['-sign_on_date']
 
 
 class CommunicationLog(models.Model):
@@ -312,7 +311,7 @@ class Appraisal(models.Model):
     class Meta:
         verbose_name = "Appraisal"
         verbose_name_plural = "Appraisals"
-        ordering = ['-evaluation_date'] # Issue Fix: Changed from -appraisal_date
+        ordering = ['-evaluation_date']
 
 
 class Document(models.Model):
@@ -333,7 +332,7 @@ class Document(models.Model):
     document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES)
     place_of_issue = models.CharField(max_length=100)
     issuing_country = models.CharField(max_length=100)
-    document_no = models.CharField(max_length=100, unique=False) # Issue Fix: Changed to unique=False
+    document_no = models.CharField(max_length=100, unique=False)
     issue_date = models.DateField()
     expiry_date = models.DateField(null=True, blank=True)
     document_file = models.FileField(upload_to='crew_documents/', null=True, blank=True)
@@ -360,6 +359,40 @@ class Document(models.Model):
     class Meta:
         verbose_name = "Document"
         verbose_name_plural = "Documents"
-        # Issue Fix: Added unique_together for robust unique constraint
         unique_together = ('crew_member', 'document_name', 'document_type', 'document_no')
         ordering = ['expiry_date']
+
+
+# --- AuditLog model MUST be at the very end to avoid NameErrors for other models it references ---
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        ('LOGIN', 'User Logged In'),
+        ('LOGOUT', 'User Logged Out'),
+        ('PASSWORD_CHANGE', 'Password Changed'),
+        ('CREATE', 'Record Created'),
+        ('UPDATE', 'Record Updated'),
+        ('DELETE', 'Record Deleted'),
+        ('IMPORT', 'Data Imported'),
+        ('EXPORT', 'Data Exported'),
+        # Add more specific actions as needed, e.g., 'DOCUMENT_VIEW', 'PROFILE_VIEW'
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                             help_text="User who performed the action")
+    action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    model_name = models.CharField(max_length=100, blank=True, null=True,
+                                  help_text="Name of the model affected (e.g., 'CrewMember')")
+    record_id = models.PositiveIntegerField(blank=True, null=True,
+                                            help_text="ID of the record affected")
+    description = models.TextField(help_text="Detailed description of the action")
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    changes = models.JSONField(blank=True, null=True, help_text="Dictionary of changed fields (old_value, new_value)")
+
+    class Meta:
+        verbose_name = "Audit Log Entry"
+        verbose_name_plural = "Audit Log Entries"
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.timestamp.strftime('%Y-%m-%d %H:%M:%S')} - {self.user.username if self.user else 'System'} - {self.get_action_type_display()} on {self.model_name}:{self.record_id if self.record_id else 'N/A'}"
