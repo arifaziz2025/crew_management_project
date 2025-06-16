@@ -49,13 +49,13 @@
 
         .top-utility-bar span,
         .top-utility-bar .action-link-button {
-            vertical-align: middle; /* Ensure all inline-block elements align to middle */
+            vertical-align: middle;
         }
 
         .top-utility-bar .action-link-button {
-            padding: 5px 10px; /* Consistent padding from crew_list.html */
-            font-size: 0.8em; /* Smaller font size for button */
-            margin-left: 15px; /* Space between text and button */
+            padding: 5px 10px;
+            font-size: 0.8em;
+            margin-left: 15px;
         }
 
         /* --- HEADER STYLING for Login/Dashboard --- */
@@ -405,7 +405,7 @@
                         {% for crew in upcoming_sign_offs %}
                             <li class="signoff-soon">
                                 <a href="{% url 'crew_profile_detail' pk=crew.id %}">
-                                    {{ crew.first_name }} {{ crew.last_name }} (Rank: {{ crew.current_rank }}) - Sign-off: {{ crew.relieving_plan_date|date:"M j, Y" }}
+                                    {{ crew.first_name }} {{ crew.last_name }} (Rank: {{ crew.current_rank }}) - Sign-off: {{ crew.relieving_plan_date|date:"F j, Y" }}
                                 </a>
                             </li>
                         {% endfor %}
@@ -428,7 +428,8 @@
                     <a href="{% url 'vessel_list' %}">Manage Vessels</a>
                     <a href="/admin/">Go to Admin Panel</a>
                     <a href="{% url 'crew_create' %}">+ Add New Crew Member</a>
-                    <a href="{% url 'audit_log_list' %}" class="action-link-button">View Audit Log</a> {# NEW BUTTON #}
+                    <a href="{% url 'audit_log_list' %}" class="action-link-button">View Audit Log</a>
+                    <a href="{% url 'view_and_send_alerts' %}" class="action-link-button">View & Send Alerts</a> {# NEW BUTTON FOR ALERTS #}
                 {% endif %}
             </div>
         </div>

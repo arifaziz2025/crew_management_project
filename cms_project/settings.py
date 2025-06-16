@@ -212,3 +212,23 @@ PASSWORD_HASHERS = [
         'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
     ]
     
+# Email Configuration for Alerts
+# For development: Sends emails to the console
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# For production, you would change EMAIL_BACKEND and add SMTP details:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'your_smtp_host'
+# EMAIL_PORT = 587 or 465
+# EMAIL_USE_TLS = True or EMAIL_USE_SSL = True
+# EMAIL_HOST_USER = 'your_smtp_username'
+# EMAIL_HOST_PASSWORD = 'your_smtp_password'
+
+DEFAULT_FROM_EMAIL = 'crew@mackpak.com' # The sender email address as requested
+
+# Alert Thresholds (New Feature-specific settings)
+ALERT_DAYS_DOCUMENT_EXPIRY = 60
+ALERT_DAYS_CREW_SIGNOFF = 60
+ALERT_RECIPIENT_EMAIL = 'crew@mackpak.com'
+ALERT_RECOMMENDATION_COUNT = 5 # Number of recommendations
+
+# ... (rest of your settings) ...

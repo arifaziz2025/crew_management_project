@@ -1875,3 +1875,112 @@ def audit_log_list(request):
         'title': "System Audit Log"
     }
     return render(request, 'crew_management/audit_log_list.html', context)
+
+from . import utils
+
+@login_required
+def dashboard(request):
+    # ... existing total_crew, crew_status_counts ...
+
+    # Get alerts using the new utility function
+    alerts_data = utils.get_alert_documents_and_signoffs()
+
+    # ... existing upcoming_sign_offs (you might replace this with alerts_data['upcoming_signoffs_crew']) ...
+
+    context = {
+        # ... existing context variables ...
+        'expiring_documents': alerts_data['expiring_soon_docs'], # Use the 60-day data
+        'expired_documents': alerts_data['expired_docs'],
+        'upcoming_sign_offs': alerts_data['upcoming_signoffs_crew'], # Use the 60-day data
+    }
+    return render(request, 'crew_management/dashboard.html', context)
+
+# crew_management/views.py
+
+# ... (existing imports) ...
+from django.conf import settings # Ensure settings is imported
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
+# Import the utility functions
+from crew_management import utils
+
+
+# ... (your existing create_audit_log, is_staff, is_superuser_only, and all other views) ...
+
+@login_required
+@user_passes_test(is_superuser_only) # Only superusers can view/send alerts
+def view_and_send_alerts(request):
+    # This view will generate the content for display and optionally send.
+
+    # --- 1. Get Alert Data ---
+    alerts_data = utils.get_alert_documents_and_signoffs()
+    expiring_soon_docs = alerts_data['expiring_soon_docs']
+    expired_docs = alerts_data['expired_docs']
+    upcoming_signoffs_crew = alerts_data['upcoming_signoffs_crew']
+
+    # --- 2. Generate Crew Recommendations ---
+    all_recommendations = {}
+    for signing_off_crew in upcoming_signoffs_crew:
+        recommendations = utils.get_crew_recommendations(signing_off_crew)
+        if recommendations:
+            all_recommendations[signing_off_crew] = recommendations
+
+    # --- Prepare Email Content Context (same as for the management command) ---
+    email_context = {
+        'expiring_soon_docs': expiring_soon_docs,
+        'expired_docs': expired_docs,
+        'upcoming_signoffs_crew': upcoming_signoffs_crew,
+        'all_recommendations': all_recommendations,
+        'current_date': datetime.date.today(),
+        'alert_days_doc_expiry': settings.ALERT_DAYS_DOCUMENT_EXPIRY,
+        'alert_days_crew_signoff': settings.ALERT_DAYS_CREW_SIGNOFF,
+    }
+
+    # --- Optional: Trigger Email Sending if requested (e.g., via POST or a specific GET param) ---
+    # For user safety and idempotency, it's best to trigger sending via a POST request
+    # or to have a separate "confirm and send" step.
+    # For the immediate "generate and send at same time" click, we'll keep it simple for now,
+    # but be aware of implications.
+    email_sent_status = False
+    if request.method == 'POST' and request.POST.get('send_now') == 'true':
+        subject = f"CMS Daily Alerts & Crew Recommendations - {datetime.date.today().strftime('%Y-%m-%d')}"
+        recipient_list = [settings.ALERT_RECIPIENT_EMAIL]
+        html_message = render_to_string('crew_management/emails/alert_email.html', email_context)
+        plain_message = strip_tags(html_message)
+
+        try:
+            send_mail(
+                subject,
+                plain_message,
+                settings.DEFAULT_FROM_EMAIL,
+                recipient_list,
+                html_message=html_message,
+                fail_silently=False,
+            )
+            messages.success(request, f"Alert email successfully sent to {settings.ALERT_RECIPIENT_EMAIL}.")
+            email_sent_status = True
+            create_audit_log(
+                request.user,
+                'EMAIL_SENT',
+                description=f"Manual trigger: Alert email sent to {settings.ALERT_RECIPIENT_EMAIL}.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+        except Exception as e:
+            messages.error(request, f"Error sending alert email: {e}")
+            create_audit_log(
+                request.user,
+                'EMAIL_FAIL',
+                description=f"Manual trigger: Failed to send alert email to {settings.ALERT_RECIPIENT_EMAIL}. Error: {e}",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+
+    # Render the email preview page
+    context = {
+        'email_html_content': html_message if 'html_message' in locals() else render_to_string('crew_management/emails/alert_email.html', email_context),
+        'email_sent': email_sent_status,
+        'title': "Alert Email Preview & Manual Send",
+        'recipient_email': settings.ALERT_RECIPIENT_EMAIL,
+    }
+    return render(request, 'crew_management/alert_email_preview.html', context)

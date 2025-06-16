@@ -1,0 +1,9 @@
+On Windows (using Task Scheduler):
+
+Search for "Task Scheduler" in the Start menu.
+Create a Basic Task.
+Set the trigger (e.g., Daily).
+Set the action: "Start a program".
+Program/script: C:\Users\arifa\Documents\DevProjects\crew_management_system\venv\Scripts\python.exe (your venv's python.exe)
+Add arguments: manage.py send_alerts
+Start in: C:\Users\arifa\Documents\DevProjects\crew_management_system (your project's root directory)

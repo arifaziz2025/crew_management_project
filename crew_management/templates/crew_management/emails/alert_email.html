@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMS Daily Alerts & Crew Recommendations</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { width: 80%; margin: 20px auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
+        h2 { color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 20px; }
+        ul { list-style: none; padding: 0; }
+        li { margin-bottom: 5px; }
+        .alert-item { background-color: #ffe0b2; padding: 8px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #ffcc80; }
+        .alert-item.expired { background-color: #ffcdd2; border: 1px solid #ef9a9a; }
+        .recommendation-item { background-color: #e8f5e9; padding: 8px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #c8e6c9; }
+        strong { color: #555; }
+        a { color: #3498db; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CMS Daily Alerts & Crew Recommendations</h1>
+        <p>Generated on: {{ current_date|date:"F j, Y" }}</p>
+
+        <p>Dear Staff,</p>
+        <p>This is your daily summary of critical events and crew recommendations from the Crew Management System.</p>
+
+        <h2>Document Expiry Alerts</h2>
+        <p>Documents expiring within the next {{ alert_days_doc_expiry }} days:</p>
+        {% if expiring_soon_docs %}
+            <ul>
+                {% for doc in expiring_soon_docs %}
+                    <li class="alert-item">
+                        <strong>{{ doc.document_name }}</strong> ({{ doc.document_type }}) for {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} (Code: {{ doc.crew_member.seafarer_code }})<br>
+                        Expires: {{ doc.expiry_date|date:"F j, Y" }} ({{ doc.days_to_expiry }} days left)
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No documents are expiring soon.</p>
+        {% endif %}
+
+        <p>Documents that have already expired:</p>
+        {% if expired_docs %}
+            <ul>
+                {% for doc in expired_docs %}
+                    <li class="alert-item expired">
+                        <strong>{{ doc.document_name }}</strong> ({{ doc.document_type }}) for {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} (Code: {{ doc.crew_member.seafarer_code }})<br>
+                        Expired on: {{ doc.expiry_date|date:"F j, Y" }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No recently expired documents.</p>
+        {% endif %}
+
+        <h2>Upcoming Crew Sign-offs</h2>
+        <p>Crew members scheduled to sign-off within the next {{ alert_days_crew_signoff }} days:</p>
+        {% if upcoming_signoffs_crew %}
+            <ul>
+                {% for crew in upcoming_signoffs_crew %}
+                    <li class="alert-item">
+                        <strong>{{ crew.first_name }} {{ crew.last_name }}</strong> (Rank: {{ crew.current_rank }})<br>
+                        Vessel: {{ crew.current_vessel.name|default:"N/A" }}, Principal: {{ crew.principal.name|default:"N/A" }}<br>
+                        Scheduled Sign-off: {{ crew.relieving_plan_date|date:"F j, Y" }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No crew members are scheduled to sign-off soon.</p>
+        {% endif %}
+
+        <h2>Crew Recommendations for Upcoming Sign-offs</h2>
+        {% if all_recommendations %}
+            {% for signing_off_crew, recommendations in all_recommendations.items %}
+                <h3>For {{ signing_off_crew.first_name }} {{ signing_off_crew.last_name }} (Rank: {{ signing_off_crew.current_rank }}, Principal: {{ signing_off_crew.principal.name|default:"N/A" }})</h3>
+                {% if recommendations %}
+                    <ul>
+                        {% for rec_crew in recommendations %}
+                            <li class="recommendation-item">
+                                <strong>{{ rec_crew.first_name }} {{ rec_crew.last_name }}</strong> (Rank: {{ rec_crew.current_rank }}, Signed off: {{ rec_crew.last_sign_off_date|date:"F j, Y"|default:"N/A" }})<br>
+                                Seafarer Code: {{ rec_crew.seafarer_code }}<br>
+                                Contact: {{ rec_crew.mobile_no|default:"N/A" }}, {{ rec_crew.email_id|default:"N/A" }}<br>
+                                Status: {{ rec_crew.crew_status }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No suitable recommendations found for {{ signing_off_crew.first_name }} {{ signing_off_crew.last_name }} based on criteria.</p>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <p>No crew members are signing off soon that require recommendations.</p>
+        {% endif %}
+
+        <p>Best Regards,<br>The CMS Team</p>
+    </div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # crew_management/urls.py
 
 from django.urls import path
-from . import views
+from . import views # <--- 'views' is already imported here
 
 urlpatterns = [
     # --- Authentication URLs ---
@@ -22,7 +22,7 @@ urlpatterns = [
     path('principals/', views.principal_list, name='principal_list'),
     path('principals/add/', views.principal_create, name='principal_create'),
     path('principals/<int:pk>/', views.principal_detail, name='principal_detail'),
-    path('principals/<int:pk>/edit/', views.principal_edit, name='principal_edit'), # Added edit URL
+    path('principals/<int:pk>/edit/', views.principal_edit, name='principal_edit'),
     path('principals/<int:pk>/delete/', views.principal_delete, name='principal_delete'),
     path('principals/import-csv/', views.import_principal_csv, name='import_principal_csv'),
     path('principals/export-csv/', views.export_principal_csv, name='export_principal_csv'),
@@ -31,24 +31,21 @@ urlpatterns = [
     path('vessels/', views.vessel_list, name='vessel_list'),
     path('vessels/add/', views.vessel_create, name='vessel_create'),
     path('vessels/<int:pk>/', views.vessel_detail, name='vessel_detail'),
-    path('vessels/<int:pk>/edit/', views.vessel_edit, name='vessel_edit'), # Added edit URL
+    path('vessels/<int:pk>/edit/', views.vessel_edit, name='vessel_edit'),
     path('vessels/<int:pk>/delete/', views.vessel_delete, name='vessel_delete'),
     path('vessels/import-csv/', views.import_vessel_csv, name='import_vessel_csv'),
     path('vessels/export-csv/', views.export_vessel_csv, name='export_vessel_csv'),
 
     # --- Document Management URLs ---
-    # URLs for documents nested under a crew member
     path('crew/<int:pk>/documents/', views.crew_document_list, name='crew_document_list'),
     path('crew/<int:pk>/documents/add/', views.crew_document_add, name='crew_document_add'),
-    # URLs for individual document operations (not nested)
     path('documents/<int:pk>/', views.document_detail, name='document_detail'),
     path('documents/<int:pk>/edit/', views.document_edit, name='document_edit'),
     path('documents/<int:pk>/delete/', views.document_delete, name='document_delete'),
 
-
     # --- Experience History URLs ---
     path('crew/<int:crew_pk>/experience/', views.crew_experience_list, name='crew_experience_list'),
-    path('crew/<int:crew_pk>/experience/add/', views.experience_add, name='experience_add'), # Changed to _add suffix
+    path('crew/<int:crew_pk>/experience/add/', views.experience_add, name='experience_add'),
     path('experience/<int:pk>/', views.experience_detail, name='experience_detail'),
     path('experience/<int:pk>/edit/', views.experience_edit, name='experience_edit'),
     path('experience/<int:pk>/delete/', views.experience_delete, name='experience_delete'),
@@ -83,4 +80,7 @@ urlpatterns = [
 
     # --- Audit Log URL ---
     path('audit-log/', views.audit_log_list, name='audit_log_list'),
+
+    # --- Alert Email Preview & Send ---
+    path('alerts/view-send/', views.view_and_send_alerts, name='view_and_send_alerts'), # <--- ADD THIS LINE HERE
 ]

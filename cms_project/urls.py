@@ -23,6 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('crew_management.urls')), # <-- Add this line
     path('users/', include('users.urls')), # <--- ADD THIS LINE
+    
 ]
 
 # This is only needed when running in development mode.
