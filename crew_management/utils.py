@@ -3,7 +3,9 @@
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
-from .models import CrewMember, Document, Principal, Vessel # Import necessary models
+from django.db.models import Sum, F # Import Sum and F for aggregation
+from .models import CrewMember, Document, Principal, Vessel, MonthlyAllotment, FinancialObligation # Import new models
+
 
 def get_alert_documents_and_signoffs():
     """
@@ -93,3 +95,33 @@ def get_crew_recommendations(signing_off_crew_member, num_recommendations=settin
                 break # Found enough recommendations
 
     return qualified_candidates
+
+def get_financial_summary():
+    """
+    Calculates key financial summary figures for the dashboard.
+    """
+    total_allotments_pending = MonthlyAllotment.objects.filter(
+        status='PENDING'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_allotments_paid = MonthlyAllotment.objects.filter(
+        status='PAID'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_obligations_outstanding = FinancialObligation.objects.filter(
+        status='OUTSTANDING'
+    ).aggregate(total=Sum(F('amount_due') - F('amount_paid')))['total'] or 0
+    
+    total_obligations_paid = FinancialObligation.objects.filter(
+        status='PAID'
+    ).aggregate(total=Sum('amount_paid'))['total'] or 0
+
+    # You might want to define a default currency or aggregate by currency
+    # For simplicity, this sums across all currencies. Consider currency management if multi-currency is complex.
+
+    return {
+        'total_allotments_pending': total_allotments_pending,
+        'total_allotments_paid': total_allotments_paid,
+        'total_obligations_outstanding': total_obligations_outstanding,
+        'total_obligations_paid': total_obligations_paid,
+    }

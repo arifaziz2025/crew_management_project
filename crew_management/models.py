@@ -363,6 +363,110 @@ class Document(models.Model):
         ordering = ['expiry_date']
 
 
+# --- New Financial Management Models ---
+
+class MonthlyAllotment(models.Model):
+    FUNDS_STATUS_CHOICES = [
+        ('RECEIVED', 'Received'),
+        ('NOT_RECEIVED', 'Not Received'),
+        ('PRINCIPAL_PAYS_DIRECT', 'Principal Pays Direct'),
+    ]
+    ALLOTMENT_STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('PARTIAL', 'Partial Payment'),
+        ('OVERDUE', 'Overdue'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    crew_member = models.ForeignKey(CrewMember, on_delete=models.CASCADE, related_name='monthly_allotments')
+    vessel = models.ForeignKey(Vessel, on_delete=models.SET_NULL, null=True, blank=True,
+                               verbose_name="Vessel at Allotment",
+                               help_text="Vessel crew member was onboard during this allotment period.")
+    allotment_month = models.DateField(help_text="Month and year for this allotment (e.g., 2025-06-01)") # Storing as first day of month
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=5, default='USD') # Example, consider choices or FK to Currency
+    funding_from_principal_status = models.CharField(
+        max_length=30, choices=FUNDS_STATUS_CHOICES, default='NOT_RECEIVED',
+        help_text="Status of funds from Principal for this allotment."
+    )
+    tentative_payment_date = models.DateField(
+        help_text="Tentative date for payment to crew. Used for alerts."
+    )
+    actual_payment_date = models.DateField(null=True, blank=True,
+                                           help_text="Actual date payment was confirmed to crew.")
+    status = models.CharField(max_length=15, choices=ALLOTMENT_STATUS_CHOICES, default='PENDING')
+    transaction_reference = models.CharField(max_length=100, blank=True, null=True,
+                                             help_text="Internal transaction ID or bank reference.")
+    remarks = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Allotment for {self.crew_member.first_name} {self.crew_member.last_name} ({self.allotment_month.strftime('%b %Y')}) - {self.amount} {self.currency}"
+
+    class Meta:
+        verbose_name = "Monthly Allotment"
+        verbose_name_plural = "Monthly Allotments"
+        unique_together = ('crew_member', 'allotment_month') # Ensure unique allotment per crew per month
+        ordering = ['-allotment_month']
+
+
+class FinancialObligation(models.Model):
+    OBLIGATION_TYPE_CHOICES = [
+        ('RETIREMENT_DUE', 'Retirement Due'),
+        ('LOAN', 'Loan'),
+        ('FINE', 'Fine'),
+        ('BONUS', 'Bonus'),
+        ('OTHER', 'Other Obligation'),
+    ]
+    OBLIGATION_STATUS_CHOICES = [
+        ('OUTSTANDING', 'Outstanding'),
+        ('PARTIALLY_PAID', 'Partially Paid'),
+        ('PAID', 'Paid'),
+        ('WAIVED', 'Waived'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    crew_member = models.ForeignKey(CrewMember, on_delete=models.CASCADE, related_name='financial_obligations')
+    obligation_type = models.CharField(max_length=20, choices=OBLIGATION_TYPE_CHOICES)
+    # New: Opening balance for previously collected dues
+    opening_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00,
+                                         help_text="Any balance transferred from previous records.")
+    amount_due = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=5, default='USD') # Example, consider choices or FK to Currency
+    due_date = models.DateField(null=True, blank=True) # Can be null if ongoing or immediate
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00,
+                                      help_text="Total amount paid against this obligation.")
+    status = models.CharField(max_length=15, choices=OBLIGATION_STATUS_CHOICES, default='OUTSTANDING')
+    description = models.TextField(blank=True, null=True)
+    
+    # New: Contract/Vessel context for Gratuity/Retirement
+    contract_vessel = models.ForeignKey(Vessel, on_delete=models.SET_NULL, null=True, blank=True,
+                                        verbose_name="Associated Vessel/Contract",
+                                        help_text="Vessel or contract period this obligation is tied to (e.g., Gratuity from this vessel's tenure).")
+    
+    # New: Multiple SSB/CDC Numbers (JSONField for structured data)
+    # Example format in JSON: [{"number": "12345", "expiry": "2026-12-31"}, {"number": "67890", "expiry": "2028-06-30"}]
+    ssb_cdc_numbers = models.JSONField(blank=True, null=True,
+                                      help_text="List of SSB/CDC numbers (JSON format: [{\"number\": \"value\", \"expiry\": \"YYYY-MM-DD\"}])")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def balance_due(self):
+        return self.amount_due - self.amount_paid
+
+    def __str__(self):
+        return f"{self.crew_member.first_name} {self.crew_member.last_name} - {self.get_obligation_type_display()} ({self.amount_due} {self.currency})"
+
+    class Meta:
+        verbose_name = "Financial Obligation"
+        verbose_name_plural = "Financial Obligations"
+        ordering = ['due_date', 'status']
+
+
 # --- AuditLog model MUST be at the very end to avoid NameErrors for other models it references ---
 class AuditLog(models.Model):
     ACTION_CHOICES = [
@@ -374,6 +478,8 @@ class AuditLog(models.Model):
         ('DELETE', 'Record Deleted'),
         ('IMPORT', 'Data Imported'),
         ('EXPORT', 'Data Exported'),
+        ('EMAIL_SENT', 'Email Sent'), # Added for email alert logging
+        ('EMAIL_FAIL', 'Email Failed'), # Added for email alert logging
         # Add more specific actions as needed, e.g., 'DOCUMENT_VIEW', 'PROFILE_VIEW'
     ]
 

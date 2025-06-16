@@ -1,0 +1,185 @@
+{% load static %}
+<div id="ssb-cdc-container-{{ widget.name }}" class="ssb-cdc-container">
+    <input type="hidden" name="{{ widget.name }}" id="{{ widget.attrs.id }}" value="{{ widget.value }}">
+
+    <div class="ssb-cdc-entries">
+        {# Entries will be rendered here by JavaScript #}
+    </div>
+
+    <button type="button" class="action-link-button add-ssb-cdc-entry">
+        + Add SSB/CDC Number
+    </button>
+</div>
+
+<script>
+    (function() {
+        const container = document.getElementById('ssb-cdc-container-{{ widget.name }}');
+        const hiddenInput = document.getElementById('{{ widget.attrs.id }}');
+        const entriesContainer = container.querySelector('.ssb-cdc-entries');
+        const addButton = container.querySelector('.add-ssb-cdc-entry');
+
+        let entryCounter = 0;
+
+        function createEntryHtml(number = '', expiry = '') {
+            const entryDiv = document.createElement('div');
+            entryDiv.classList.add('ssb-cdc-entry');
+            entryDiv.dataset.id = entryCounter++; // Unique ID for each entry
+
+            entryDiv.innerHTML = `
+                <div class="ssb-cdc-fields">
+                    <label>Number:</label>
+                    <input type="text" class="ssb-cdc-number" value="${number}" placeholder="SSB/CDC Number">
+                    <label>Expiry Date:</label>
+                    <input type="date" class="ssb-cdc-expiry" value="${expiry}" placeholder="YYYY-MM-DD">
+                    <button type="button" class="delete-ssb-cdc-entry">Remove</button>
+                </div>
+            `;
+
+            const deleteButton = entryDiv.querySelector('.delete-ssb-cdc-entry');
+            deleteButton.onclick = () => {
+                entryDiv.remove();
+                updateHiddenInput();
+            };
+
+            // Add input event listeners to dynamically update the hidden field
+            entryDiv.querySelector('.ssb-cdc-number').addEventListener('input', updateHiddenInput);
+            entryDiv.querySelector('.ssb-cdc-expiry').addEventListener('input', updateHiddenInput);
+
+            return entryDiv;
+        }
+
+        function renderExistingEntries() {
+            try {
+                const existingValue = JSON.parse(hiddenInput.value || '[]');
+                existingValue.forEach(entry => {
+                    // Ensure expiry is 'YYYY-MM-DD' for date input compatibility
+                    const expiryDate = entry.expiry ? new Date(entry.expiry).toISOString().split('T')[0] : '';
+                    entriesContainer.appendChild(createEntryHtml(entry.number, expiryDate));
+                });
+            } catch (e) {
+                console.error("Error parsing existing SSB/CDC JSON:", e);
+                // Optionally, display a message to the user or clear the field
+            }
+        }
+
+        function updateHiddenInput() {
+            const currentEntries = [];
+            entriesContainer.querySelectorAll('.ssb-cdc-entry').forEach(entryDiv => {
+                const number = entryDiv.querySelector('.ssb-cdc-number').value;
+                const expiry = entryDiv.querySelector('.ssb-cdc-expiry').value; // Already YYYY-MM-DD from date input
+
+                if (number || expiry) { // Only add if at least one field is filled
+                    currentEntries.push({ number: number, expiry: expiry });
+                }
+            });
+            hiddenInput.value = JSON.stringify(currentEntries);
+        }
+
+        // Initialize with existing data on page load
+        renderExistingEntries();
+
+        // Add button functionality
+        addButton.onclick = () => {
+            entriesContainer.appendChild(createEntryHtml());
+            updateHiddenInput(); // Update to include the new empty entry
+        };
+
+        // Important: Ensure the hidden input is updated right before form submission
+        // This is a fallback in case 'input' events are not fully propagated or handled
+        // by browser autocomplete etc.
+        const form = hiddenInput.closest('form');
+        if (form) {
+            form.addEventListener('submit', updateHiddenInput);
+        }
+
+    })();
+</script>
+
+<style>
+    /* Styles for the dynamic SSB/CDC fields (can be moved to main CSS if desired) */
+    .ssb-cdc-container {
+        border: 1px solid var(--border-color);
+        padding: 15px;
+        border-radius: 8px;
+        background-color: var(--main-bg-dark); /* Match other inputs or form background */
+        margin-bottom: 15px;
+    }
+    .ssb-cdc-entries {
+        margin-bottom: 10px;
+    }
+    .ssb-cdc-entry {
+        border: 1px solid #4a4a7a; /* A slightly different border for individual entries */
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        background-color: #2a2a4a; /* Slightly lighter background for entry */
+    }
+    .ssb-cdc-fields {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px; /* Space between fields */
+        align-items: center;
+    }
+    .ssb-cdc-fields label {
+        flex-basis: 100px; /* Label width */
+        font-weight: normal; /* Labels within dynamic fields can be less bold */
+        color: var(--text-light);
+        margin-bottom: 0; /* Override form p label margin */
+    }
+    .ssb-cdc-fields input[type="text"],
+    .ssb-cdc-fields input[type="date"] {
+        flex-grow: 1; /* Inputs take remaining space */
+        min-width: 150px; /* Ensure inputs are not too small */
+        width: auto; /* Override 100% width from main form styles */
+        padding: 8px 10px;
+        border: 1px solid var(--button-bg);
+        border-radius: 4px;
+        background-color: var(--main-bg-dark);
+        color: var(--text-white);
+    }
+    .ssb-cdc-fields input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+    }
+    .delete-ssb-cdc-entry {
+        background-color: var(--messages-error);
+        color: var(--text-white);
+        padding: 8px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.3s ease;
+        white-space: nowrap;
+    }
+    .delete-ssb-cdc-entry:hover {
+        background-color: #c82333;
+    }
+    .add-ssb-cdc-entry {
+        background-color: var(--button-bg);
+        color: var(--text-white);
+        padding: 8px 15px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.3s ease;
+        margin-top: 10px;
+    }
+    .add-ssb-cdc-entry:hover {
+        background-color: var(--button-hover-bg);
+    }
+
+    @media (max-width: 768px) {
+        .ssb-cdc-fields {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .ssb-cdc-fields label,
+        .ssb-cdc-fields input,
+        .ssb-cdc-fields button {
+            width: 100%;
+            box-sizing: border-box; /* Crucial for mobile layout */
+        }
+    }
+</style>

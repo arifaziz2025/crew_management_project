@@ -1,5 +1,7 @@
 from django import forms
-from .models import CrewMember, Principal, Vessel, Document, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal
+from .models import CrewMember, Principal, Vessel, Document, ExperienceHistory, NextOfKin, CommunicationLog, ProfessionalReference, Appraisal, MonthlyAllotment, FinancialObligation
+from .widgets import SsbCdcNumbersWidget # NEW: Import the custom widget
+import json # Already used, ensure it's imported
 
 class CrewMemberProfileForm(forms.ModelForm):
     class Meta:
@@ -22,15 +24,15 @@ class CrewMemberProfileForm(forms.ModelForm):
             'skype_id',
             'domestic_airport',
             'nearest_international_airport',
-            'current_rank', # Ensure this is editable if needed for initial creation
-            'joined_in_company', # <--- ADDED THIS FIELD
+            'current_rank',
+            'joined_in_company',
             'joined_in_rank',
-            'principal', # Ensure this is editable if needed for initial creation
+            'principal',
             'crew_status',
             'performance_rating',
             'relieving_plan_date',
             'last_sign_off_date',
-            'current_vessel', # Ensure this is editable if needed for initial creation
+            'current_vessel',
             'ssb_no',
             'client_name_for_appraisal',
             'account_title',
@@ -146,8 +148,6 @@ class CommunicationLogForm(forms.ModelForm):
             'purpose_of_call',
             'remarks'
         ]
-        # Assuming 'date' is auto_now_add/default=timezone.now in model, so not in form.
-        # If 'date' was in fields, it would need a DateInput widget.
 
 class ProfessionalReferenceForm(forms.ModelForm):
     class Meta:
@@ -161,7 +161,6 @@ class ProfessionalReferenceForm(forms.ModelForm):
             'mobile_no',
             'fax_no',
             'remarks',
-            # 'date' is likely auto_now_add/default=timezone.now, not in form for manual entry.
         ]
 
 class AppraisalForm(forms.ModelForm):
@@ -184,3 +183,56 @@ class AppraisalForm(forms.ModelForm):
             'date_sign_on': forms.DateInput(attrs={'type': 'date'}),
             'date_sign_off': forms.DateInput(attrs={'type': 'date'}),
         }
+
+# --- New Financial Management Forms ---
+
+class MonthlyAllotmentForm(forms.ModelForm):
+    class Meta:
+        model = MonthlyAllotment
+        fields = [
+            'allotment_month',
+            'vessel',
+            'amount',
+            'currency',
+            'funding_from_principal_status',
+            'tentative_payment_date',
+            'actual_payment_date',
+            'status',
+            'transaction_reference',
+            'remarks',
+        ]
+        widgets = {
+            'allotment_month': forms.DateInput(attrs={'type': 'month'}),
+            'tentative_payment_date': forms.DateInput(attrs={'type': 'date'}),
+            'actual_payment_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def clean_allotment_month(self):
+        allotment_month = self.cleaned_data['allotment_month']
+        return allotment_month.replace(day=1)
+
+
+class FinancialObligationForm(forms.ModelForm):
+    class Meta:
+        model = FinancialObligation
+        fields = [
+            'obligation_type',
+            'opening_balance',
+            'amount_due',
+            'currency',
+            'due_date',
+            'amount_paid',
+            'status',
+            'description',
+            'contract_vessel',
+            'ssb_cdc_numbers', # This field now uses the custom widget
+        ]
+        widgets = {
+            'due_date': forms.DateInput(attrs={'type': 'date'}),
+            'ssb_cdc_numbers': SsbCdcNumbersWidget(), # NEW: Use the custom widget here
+        }
+
+    # IMPORTANT: The clean_ssb_cdc_numbers method is now removed because the widget handles JSON parsing
+    # The widget's value_from_datadict method will return a Python list/None/string for invalid JSON
+    # If the widget returns a string (due to JSONDecodeError), Django's default validation will
+    # flag it, or you can add a custom validator to the field if more complex checks are needed.

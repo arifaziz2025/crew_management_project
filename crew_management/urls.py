@@ -1,7 +1,7 @@
 # crew_management/urls.py
 
 from django.urls import path
-from . import views # <--- 'views' is already imported here
+from . import views
 
 urlpatterns = [
     # --- Authentication URLs ---
@@ -81,6 +81,19 @@ urlpatterns = [
     # --- Audit Log URL ---
     path('audit-log/', views.audit_log_list, name='audit_log_list'),
 
-    # --- Alert Email Preview & Send ---
-    path('alerts/view-send/', views.view_and_send_alerts, name='view_and_send_alerts'), # <--- ADD THIS LINE HERE
+    # --- Alert Email Preview & Send URL ---
+    path('alerts/view-send/', views.view_and_send_alerts, name='view_and_send_alerts'),
+
+    # --- New Financial Management URLs ---
+    path('crew/<int:crew_pk>/allotments/', views.crew_allotment_list, name='crew_allotment_list'),
+    path('crew/<int:crew_pk>/allotments/add/', views.monthly_allotment_add, name='monthly_allotment_add'),
+    path('allotments/<int:pk>/', views.monthly_allotment_detail, name='monthly_allotment_detail'),
+    path('allotments/<int:pk>/edit/', views.monthly_allotment_edit, name='monthly_allotment_edit'),
+    path('allotments/<int:pk>/delete/', views.monthly_allotment_delete, name='monthly_allotment_delete'),
+
+    path('crew/<int:crew_pk>/obligations/', views.crew_financial_obligation_list, name='crew_financial_obligation_list'),
+    path('crew/<int:crew_pk>/obligations/add/', views.financial_obligation_add, name='financial_obligation_add'),
+    path('obligations/<int:pk>/', views.financial_obligation_detail, name='financial_obligation_detail'),
+    path('obligations/<int:pk>/edit/', views.financial_obligation_edit, name='financial_obligation_edit'),
+    path('obligations/<int:pk>/delete/', views.financial_obligation_delete, name='financial_obligation_delete'),
 ]

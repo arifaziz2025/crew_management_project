@@ -1,0 +1,345 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        /* Base Colors */
+        :root {
+            --main-bg-dark: #1a1a2e;
+            --card-bg: #2a2a4a;
+            --border-color: #3a3a6a;
+            --text-light: #e0e0e0;
+            --text-white: #ffffff;
+            --link-color: #8aff8a;
+            --button-bg: #4a4a7a;
+            --button-hover-bg: #5a5a9a;
+            --messages-success: #4CAF50;
+            --messages-error: #f44336;
+            --messages-info: #2196F3;
+            --messages-warning: #ff9800;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--main-bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- NEW: Top Utility Bar for Logout Button (Consistent alignment) --- */
+        .top-utility-bar {
+            background-color: var(--main-bg-dark);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            font-size: 0.9em;
+            color: var(--text-light);
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
+            line-height: 1.2;
+        }
+
+        .top-utility-bar span,
+        .top-utility-bar .action-link-button {
+            vertical-align: middle;
+        }
+
+        .top-utility-bar .action-link-button {
+            padding: 5px 10px;
+            font-size: 0.8em;
+            margin-left: 15px;
+        }
+
+        /* --- HEADER STYLING --- */
+        .header-container {
+            background-color: var(--card-bg);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header-logo {
+            height: 80px;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .header-branding {
+            text-align: center;
+            margin-bottom: 0;
+            width: 100%;
+        }
+        .header-branding h1 {
+            white-space: nowrap;
+            font-size: 2.2em;
+            color: var(--text-white);
+            margin: 0;
+            line-height: 1;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .header-subtitle {
+            font-size: 1.2em;
+            color: var(--link-color) !important;
+            margin-top: 5px;
+            line-height: 1;
+        }
+
+        @media (max-width: 768px) {
+            .top-utility-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 10px;
+            }
+            .top-utility-bar .action-link-button {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+
+            .header-container { padding: 10px; }
+            .header-logo { height: 60px; margin-bottom: 5px; }
+            .header-branding h1 { font-size: 1.8em; line-height: 1.2; }
+            .header-subtitle {
+                font-size: 1em;
+                padding: 0;
+                margin-top: 5px;
+            }
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            box-sizing: border-box;
+        }
+
+        /* --- FOOTER STYLING --- */
+        .footer-container {
+            background-color: var(--card-bg);
+            color: var(--text-light);
+            padding: 15px 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+        .footer-copyright {
+            margin: 5px 0;
+            font-size: 0.8em;
+            color: var(--text-light);
+        }
+        /* --- COMMON BUTTONS & LINKS --- */
+        .action-link-button {
+            background-color: var(--button-bg);
+            color: var(--text-white);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .action-link-button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- MESSAGES (Django) --- */
+        .messages {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 10px auto;
+            max-width: 900px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--text-white);
+        }
+        .messages .success { background-color: var(--messages-success); }
+        .messages .error { background-color: var(--messages-error); }
+        .messages .info { background-color: var(--messages-info); }
+        .messages .warning { background-color: var(--messages-warning); }
+        .no-data { text-align: center; padding: 20px; color: var(--text-light); }
+
+        /* --- COMMON CONTAINER STYLES --- */
+        .profile-container {
+            max-width: 800px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            margin: 20px auto;
+        }
+
+        h1, h2, h3 {
+            color: var(--text-white);
+        }
+        .profile-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        /* Styles specific to Detail pages */
+        .detail-section h2 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-top: 35px;
+            color: var(--text-white);
+            font-size: 1.8em;
+        }
+        .detail-item {
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+        .detail-item strong {
+            display: inline-block;
+            width: 200px;
+            color: var(--text-light);
+        }
+        .button-container {
+            text-align: right;
+            margin-top: 0px;
+            margin-bottom: 20px;
+            padding-top: 10px;
+        }
+        .json-display {
+            background-color: var(--main-bg-dark);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap; /* Preserves whitespace and wraps text */
+            word-break: break-all; /* Breaks long words if necessary */
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .profile-container { padding: 15px; }
+            .detail-item strong { width: 150px; }
+        }
+    </style>
+</head>
+<body>
+    {# Top Utility Bar #}
+    <div class="top-utility-bar">
+        {% if request.user.is_authenticated %}
+            <span>Hello, {{ request.user.username }}!</span>
+            <a href="{% url 'logout' %}" class="action-link-button">Logout</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="action-link-button">Login</a>
+        {% endif %}
+    </div>
+
+    {# Header Container #}
+    <div class="header-container">
+        <img src="{% static 'images/MM White Logo.png' %}" alt="Mackinnon Mackenzie Logo" class="header-logo">
+        <div class="header-branding">
+            <h1>Mackinnon Mackenzie & Co. of Pakistan (Private) Limited</h1>
+            <p class="header-subtitle">Financial Obligation Details</p>
+        </div>
+    </div>
+
+    {# Django messages #}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+
+    {# Main Content Area #}
+    <div class="main-content">
+        <div class="profile-container">
+            <h1>{{ title }}</h1>
+
+            <div class="button-container">
+                <a href="{% url 'financial_obligation_edit' pk=obligation.pk %}" class="action-link-button">Edit Obligation</a>
+            </div>
+
+            <div class="detail-section">
+                <h2>Obligation Information</h2>
+                <div class="detail-item"><strong>Crew Member:</strong> <a href="{% url 'crew_profile_detail' pk=crew.pk %}">{{ crew.first_name }} {{ crew.last_name }}</a></div>
+                <div class="detail-item"><strong>Obligation Type:</strong> {{ obligation.get_obligation_type_display }}</div>
+                <div class="detail-item"><strong>Opening Balance:</strong> {{ obligation.opening_balance }} {{ obligation.currency }}</div>
+                <div class="detail-item"><strong>Amount Due:</strong> {{ obligation.amount_due }} {{ obligation.currency }}</div>
+                <div class="detail-item"><strong>Amount Paid:</strong> {{ obligation.amount_paid }} {{ obligation.currency }}</div>
+                <div class="detail-item"><strong>Balance Due:</strong> {{ obligation.balance_due }} {{ obligation.currency }}</div>
+                <div class="detail-item"><strong>Status:</strong> {{ obligation.get_status_display }}</div>
+                <div class="detail-item"><strong>Due Date:</strong> {{ obligation.due_date|date:"M j, Y"|default:"N/A" }}</div>
+                <div class="detail-item"><strong>Associated Vessel/Contract:</strong> {% if obligation.contract_vessel %}<a href="{% url 'vessel_detail' pk=obligation.contract_vessel.pk %}">{{ obligation.contract_vessel.name }}</a>{% else %}N/A{% endif %}</div>
+                <div class="detail-item"><strong>Description:</strong> {{ obligation.description|default:"N/A"|linebreaksbr }}</div>
+                <div class="detail-item"><strong>Created At:</strong> {{ obligation.created_at|date:"M j, Y H:i" }}</div>
+                <div class="detail-item"><strong>Last Updated:</strong> {{ obligation.updated_at|date:"M j, Y H:i" }}</div>
+
+                {% if obligation.ssb_cdc_numbers %}
+                    <div class="detail-item">
+                        <strong>SSB/CDC Numbers:</strong>
+                        <div class="json-display">
+                            {# Display JSON data in a pre-formatted block #}
+                            <pre>{{ obligation.ssb_cdc_numbers|json_script:"ssb_cdc_numbers_json" }}</pre>
+                            <script>
+                                // A small script to pretty-print JSON for display
+                                const scriptTag = document.getElementById('ssb_cdc_numbers_json');
+                                if (scriptTag) {
+                                    try {
+                                        const data = JSON.parse(scriptTag.textContent);
+                                        scriptTag.textContent = JSON.stringify(data, null, 2); // Pretty print with 2-space indent
+                                    } catch (e) {
+                                        // Fallback if content isn't valid JSON, display as is
+                                        console.error("Error parsing JSON for display:", e);
+                                    }
+                                }
+                            </script>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="detail-item"><strong>SSB/CDC Numbers:</strong> N/A</div>
+                {% endif %}
+            </div>
+
+            <p style="text-align: center; margin-top: 30px;">
+                <a href="{% url 'crew_financial_obligation_list' crew_pk=crew.pk %}" class="action-link-button" style="margin-right: 10px;">Back to Obligations List</a>
+                <a href="{% url 'crew_profile_detail' pk=crew.pk %}" class="action-link-button">Back to Crew Profile</a>
+            </p>
+        </div>
+    </div>
+
+    {# Footer #}
+    <div class="footer-container">
+        <p class="footer-copyright">Copyright Arif Aziz June 2025</p>
+        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'login' %}
+            <p style="margin-top: 10px;"><a href="{% url 'dashboard' %}" class="action-link-button">Back to Dashboard</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>

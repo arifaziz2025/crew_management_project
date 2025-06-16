@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crew Profile: {{ crew_member.first_name }} {{ crew_member.last_name }}</title>
     <style>
-        /* Base Colors */
+        /* Base Colors (from base_login_dashboard.html) */
         :root {
             --main-bg-dark: #1a1a2e;        /* Main page background */
             --card-bg: #2a2a4a;             /* Background for cards, headers, footers */
@@ -42,8 +42,8 @@
             align-items: center;
             font-size: 0.9em;
             color: var(--text-light);
-            flex-shrink: 0;
-            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0; /* Ensures it doesn't shrink in flex column layout */
+            border-bottom: 1px solid var(--border-color); /* Subtle separator */
         }
 
         .top-utility-bar .action-link-button {
@@ -394,6 +394,9 @@
                         <a href="{% url 'crew_communication_log_list' crew_pk=crew_member.pk %}" class="action-link-button">Manage Communication Log</a>
                         <a href="{% url 'crew_professional_reference_list' crew_pk=crew_member.pk %}" class="action-link-button">Manage Professional References</a>
                         <a href="{% url 'crew_appraisal_list' crew_pk=crew_member.pk %}" class="action-link-button">Manage Appraisals</a>
+                        {# NEW FINANCIAL LINKS #}
+                        <a href="{% url 'crew_allotment_list' crew_pk=crew_member.pk %}" class="action-link-button">Manage Allotments</a>
+                        <a href="{% url 'crew_financial_obligation_list' crew_pk=crew_member.pk %}" class="action-link-button">Manage Financial Obligations</a>
                     </div>
                 {% endif %}
             </div>

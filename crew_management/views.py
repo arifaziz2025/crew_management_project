@@ -11,24 +11,32 @@ import csv
 import io
 import datetime
 from django.utils import timezone
-import json # Make sure this is imported if not already
+import json
+
+from django.conf import settings # <--- ADD THIS LINE
 
 # Corrected: Import User from django.contrib.auth.models
 from django.contrib.auth.models import User
 
-# Import your models based on the provided models.py
+# Import your models
 from .models import (
     CrewMember, Principal, Vessel, Document,
     ExperienceHistory, NextOfKin, CommunicationLog,
-    ProfessionalReference, Appraisal, AuditLog # Ensure AuditLog is imported
+    ProfessionalReference, Appraisal, AuditLog, # Ensure AuditLog is imported
+    MonthlyAllotment, FinancialObligation # Import new financial models
 )
 
-# Import your forms (from forms.py)
+# Import your forms
 from .forms import (
     CrewMemberProfileForm, PrincipalForm, VesselForm, DocumentForm,
     ExperienceHistoryForm, NextOfKinForm, CommunicationLogForm,
-    ProfessionalReferenceForm, AppraisalForm
+    ProfessionalReferenceForm, AppraisalForm,
+    MonthlyAllotmentForm, FinancialObligationForm # Import new financial forms
 )
+
+# Import the utility functions
+from crew_management import utils
+
 
 # Helper function to check if user is staff
 def is_staff(user):
@@ -45,15 +53,10 @@ def create_audit_log(user, action_type, model_instance=None, description="", ip_
     model_name = model_instance.__class__.__name__ if model_instance else None
     record_id = model_instance.pk if model_instance else None
 
-    # Get IP address from request if not provided
-    # Note: request object is not directly available here, but REMOTE_ADDR is often in request.META.
-    # For a comprehensive solution, consider a custom middleware to attach IP to request.user.
-    # For now, if called from a view, request.META.get('REMOTE_ADDR') is passed directly.
-    
     AuditLog.objects.create(
         user=user,
         action_type=action_type,
-        timestamp=timezone.now(), # Ensure timestamp is explicitly set here
+        timestamp=timezone.now(),
         model_name=model_name,
         record_id=record_id,
         description=description,
@@ -68,20 +71,7 @@ def login_view(request):
             user = form.get_user()
             auth_login(request, user)
             messages.success(request, f"Welcome, {user.username}!")
-
-            # Log login via signal in apps.py, no direct call here
-            # (assuming apps.py signals are correctly set up)
-
-            if user.is_staff:
-                return redirect('dashboard')
-            else:
-                try:
-                    crew_profile = CrewMember.objects.get(user=user)
-                    return redirect('crew_profile_detail', pk=crew_profile.pk)
-                except CrewMember.DoesNotExist:
-                    messages.warning(request, "Your user account is not linked to a crew profile. Please contact support.")
-                    auth_logout(request)
-                    return redirect('login')
+            return redirect('dashboard')
         else:
             messages.error(request, "Invalid username or password.")
     else:
@@ -89,7 +79,6 @@ def login_view(request):
     return render(request, 'users/login.html', {'form': form})
 
 def logout_view(request):
-    # Log logout via signal in apps.py
     auth_logout(request)
     messages.info(request, "You have been logged out.")
     return redirect('login')
@@ -101,33 +90,15 @@ def dashboard(request):
     crew_by_status_query = CrewMember.objects.values('crew_status').annotate(count=models.Count('crew_status'))
     crew_status_counts = {item['crew_status']: item['count'] for item in crew_by_status_query}
 
-    today = datetime.date.today()
-    three_months_from_now = today + datetime.timedelta(days=90)
-    six_months_from_now = today + datetime.timedelta(days=180)
-
-
-    # Document Expiry Alerts (Expiring within 3 months)
-    expiring_documents = Document.objects.filter(
-        expiry_date__gte=today,
-        expiry_date__lte=three_months_from_now
-    ).order_by('expiry_date')[:10]
-
-    expired_documents = Document.objects.filter(
-        expiry_date__lt=today
-    ).order_by('-expiry_date')[:10]
-
-    # Upcoming Crew Changes (based on relieving_plan_date from CrewMember, next 6 months)
-    upcoming_sign_offs = CrewMember.objects.filter(
-        relieving_plan_date__gte=today,
-        relieving_plan_date__lte=six_months_from_now
-    ).order_by('relieving_plan_date')[:10]
+    # Get alerts using the new utility function
+    alerts_data = utils.get_alert_documents_and_signoffs()
 
     context = {
         'total_crew': total_crew,
         'crew_status_counts': crew_status_counts,
-        'expiring_documents': expiring_documents,
-        'expired_documents': expired_documents,
-        'upcoming_sign_offs': upcoming_sign_offs,
+        'expiring_documents': alerts_data['expiring_soon_docs'],
+        'expired_documents': alerts_data['expired_docs'],
+        'upcoming_sign_offs': alerts_data['upcoming_signoffs_crew'],
         'financial_summary_placeholder': 'Financial snapshot data will appear here.',
     }
     return render(request, 'crew_management/dashboard.html', context)
@@ -180,7 +151,6 @@ def crew_profile_detail(request, pk):
 def crew_profile_edit(request, pk):
     crew_member = get_object_or_404(CrewMember, pk=pk)
     if request.method == 'POST':
-        # Capture initial state for diffing
         initial_data = {field.name: getattr(crew_member, field.name) for field in crew_member._meta.fields if field.name not in ['id', 'user', 'created_at', 'updated_at', 'profile_picture', 'blank_cheque_leaf_copy']}
 
         form = CrewMemberProfileForm(request.POST, request.FILES, instance=crew_member)
@@ -188,12 +158,10 @@ def crew_profile_edit(request, pk):
             updated_instance = form.save()
             messages.success(request, f"Profile for {crew_member.first_name} {crew_member.last_name} updated successfully!")
 
-            # Generate detailed changes for audit log
             changed_fields_detail = {}
             for field_name, new_value in form.cleaned_data.items():
                 if field_name not in ['id', 'user', 'created_at', 'updated_at', 'profile_picture', 'blank_cheque_leaf_copy']:
-                    old_value = initial_data.get(field_name) # Retrieve old value
-                    # Handle Foreign Keys (display name instead of ID)
+                    old_value = initial_data.get(field_name)
                     if hasattr(form.fields[field_name], 'queryset') and form.fields[field_name].queryset.model in [Principal, Vessel]:
                         old_obj = form.fields[field_name].queryset.model.objects.filter(pk=old_value).first()
                         new_obj = form.fields[field_name].queryset.model.objects.filter(pk=new_value.pk).first() if new_value else None
@@ -290,7 +258,7 @@ def import_crew_csv(request):
                         try:
                             return datetime.datetime.strptime(date_str, '%d-%m-%Y').date()
                         except ValueError:
-                            errors.append(f"Row {row_num}: Invalid '{field_name}' date format ('{date_str}'). Expected YYYY-MM-DD or DD-MM-YYYY.")
+                            errors.append(f"Row {row_num}: Invalid '{field_name}' date format ('{date_str}'). Expected YEAR-MM-DD or DD-MM-YYYY.")
                             return None
                 return None
 
@@ -402,7 +370,6 @@ def import_crew_csv(request):
                                 'UPDATE',
                                 model_instance=crew_obj,
                                 description=f"Updated existing Crew Member via import: {crew_obj.first_name} {crew_obj.last_name} (Code: {crew_obj.seafarer_code}).",
-                                # For import, detailed changes are harder to log without tracking previous state for each row
                                 ip_address=request.META.get('REMOTE_ADDR')
                             )
                     else:
@@ -558,7 +525,7 @@ def principal_detail(request, pk):
 def principal_edit(request, pk):
     principal = get_object_or_404(Principal, pk=pk)
     if request.method == 'POST':
-        initial_data = {field.name: getattr(principal, field.name) for field in principal._meta.fields if field.name not in ['id', 'remarks']} # Exclude remarks for simpler diff
+        initial_data = {field.name: getattr(principal, field.name) for field in principal._meta.fields if field.name not in ['id', 'remarks']}
         form = PrincipalForm(request.POST, instance=principal)
         if form.is_valid():
             updated_instance = form.save()
@@ -817,7 +784,7 @@ def vessel_edit(request, pk):
             for field_name, new_value in form.cleaned_data.items():
                 if field_name not in ['id']:
                     old_value = initial_data.get(field_name)
-                    if field_name == 'associated_principal': # Handle FK
+                    if field_name == 'associated_principal':
                         old_value_display = str(Principal.objects.filter(pk=old_value).first()) if old_value else 'None'
                         new_value_display = str(new_value) if new_value else 'None'
                     else:
@@ -1076,7 +1043,6 @@ def document_edit(request, pk):
     document = get_object_or_404(Document, pk=pk)
     crew_member = document.crew_member
     if request.method == 'POST':
-        # Initial data capture (excluding file fields for simpler diffing)
         initial_data = {field.name: getattr(document, field.name) for field in document._meta.fields if field.name not in ['id', 'crew_member', 'document_file', 'created_at', 'updated_at']}
 
         form = DocumentForm(request.POST, request.FILES, instance=document)
@@ -1088,13 +1054,6 @@ def document_edit(request, pk):
             for field_name, new_value in form.cleaned_data.items():
                 if field_name not in ['id', 'crew_member', 'document_file', 'created_at', 'updated_at']:
                     old_value = initial_data.get(field_name)
-                    # For Date fields, ensure comparison is type-consistent
-                    if isinstance(old_value, datetime.date) and isinstance(new_value, datetime.date):
-                        pass # direct comparison is fine
-                    elif isinstance(old_value, models.fields.files.ImageFieldFile) or isinstance(new_value, models.fields.files.ImageFieldFile):
-                        # File fields require special handling, might just log "file uploaded/changed"
-                        # For now, if file field is not in 'excluded', it will be compared as path
-                        pass
                     if old_value != new_value:
                         changed_fields_detail[field_name] = {
                             'old': str(old_value),
@@ -1473,7 +1432,7 @@ def communicationlog_edit(request, pk):
     log = get_object_or_404(CommunicationLog, pk=pk)
     crew_member = log.crew_member
     if request.method == 'POST':
-        initial_data = {field.name: getattr(log, field.name) for field in log._meta.fields if field.name not in ['id', 'crew_member', 'user_name', 'date']} # Exclude auto/read-only fields
+        initial_data = {field.name: getattr(log, field.name) for field in log._meta.fields if field.name not in ['id', 'crew_member', 'user_name', 'date']}
         form = CommunicationLogForm(request.POST, instance=log)
         if form.is_valid():
             updated_instance = form.save()
@@ -1741,7 +1700,7 @@ def appraisal_edit(request, pk):
             for field_name, new_value in form.cleaned_data.items():
                 if field_name not in ['id', 'crew_member']:
                     old_value = initial_data.get(field_name)
-                    if field_name == 'vessel': # Handle FK for vessel
+                    if field_name == 'vessel':
                         old_value_display = str(Vessel.objects.filter(pk=old_value).first()) if old_value else 'None'
                         new_value_display = str(new_value) if new_value else 'None'
                     else:
@@ -1805,21 +1764,308 @@ def appraisal_delete(request, pk):
         messages.warning(request, "Deletion requires a POST request.")
     return redirect('crew_appraisal_list', crew_pk=crew_pk)
 
-# --- Audit Log View (Access restricted to Superusers) ---
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger # For pagination
-from django.db.models import F, Q # For F-expressions and Q-objects
+# --- New Financial Management Views ---
 
 @login_required
-# REMOVE @user_passes_test(is_superuser_only) from here
+@user_passes_test(is_staff)
+def crew_allotment_list(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
+    allotments = MonthlyAllotment.objects.filter(crew_member=crew_member).order_by('-allotment_month')
+    context = {
+        'crew': crew_member,
+        'allotments': allotments,
+        'title': f"Monthly Allotments for {crew_member.first_name} {crew_member.last_name}"
+    }
+    return render(request, 'crew_management/finance/monthly_allotment_list.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def monthly_allotment_add(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
+    if request.method == 'POST':
+        form = MonthlyAllotmentForm(request.POST)
+        if form.is_valid():
+            allotment = form.save(commit=False)
+            allotment.crew_member = crew_member
+            # Auto-pick vessel if crew is onboard
+            if crew_member.crew_status == 'Onboard' and crew_member.current_vessel:
+                allotment.vessel = crew_member.current_vessel
+            allotment.save()
+            messages.success(request, f"Monthly allotment for {crew_member.first_name} added successfully.")
+            create_audit_log(
+                request.user, 'CREATE', model_instance=allotment,
+                description=f"Added Monthly Allotment for {crew_member.first_name} {crew_member.last_name} for {allotment.allotment_month.strftime('%b %Y')}.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            return redirect('crew_allotment_list', crew_pk=crew_member.pk)
+        else:
+            messages.error(request, "Error adding monthly allotment. Please check the form.")
+    else:
+        form = MonthlyAllotmentForm()
+    context = {
+        'form': form,
+        'crew': crew_member,
+        'title': f"Add Monthly Allotment for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Allotment"
+    }
+    return render(request, 'crew_management/finance/monthly_allotment_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def monthly_allotment_detail(request, pk):
+    allotment = get_object_or_404(MonthlyAllotment, pk=pk)
+    crew_member = allotment.crew_member
+    context = {
+        'allotment': allotment,
+        'crew': crew_member,
+        'title': f"Allotment Details for {crew_member.first_name} {crew_member.last_name} ({allotment.allotment_month.strftime('%b %Y')})"
+    }
+    return render(request, 'crew_management/finance/monthly_allotment_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def monthly_allotment_edit(request, pk):
+    allotment = get_object_or_404(MonthlyAllotment, pk=pk)
+    crew_member = allotment.crew_member
+    if request.method == 'POST':
+        initial_data = {field.name: getattr(allotment, field.name) for field in allotment._meta.fields if field.name not in ['id', 'crew_member', 'created_at', 'updated_at']}
+        form = MonthlyAllotmentForm(request.POST, instance=allotment)
+        if form.is_valid():
+            updated_allotment = form.save()
+            messages.success(request, f"Monthly allotment for {crew_member.first_name} ({updated_allotment.allotment_month.strftime('%b %Y')}) updated successfully.")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member', 'created_at', 'updated_at']:
+                    old_value = initial_data.get(field_name)
+                    if field_name == 'vessel':
+                        old_value_display = str(Vessel.objects.filter(pk=old_value).first()) if old_value else 'None'
+                        new_value_display = str(new_value) if new_value else 'None'
+                    else:
+                        old_value_display = str(old_value)
+                        new_value_display = str(new_value)
+
+                    if old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': old_value_display,
+                            'new': new_value_display
+                        }
+            
+            description_parts = [f"Updated Monthly Allotment for {crew_member.first_name} {crew_member.last_name} for {updated_allotment.allotment_month.strftime('%b %Y')}."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user, 'UPDATE', model_instance=updated_allotment,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
+            return redirect('monthly_allotment_detail', pk=updated_allotment.pk)
+        else:
+            messages.error(request, "Error updating monthly allotment. Please check the form.")
+    else:
+        form = MonthlyAllotmentForm(instance=allotment)
+    context = {
+        'form': form,
+        'allotment': allotment,
+        'crew': crew_member,
+        'title': f"Edit Monthly Allotment for {crew_member.first_name} {crew_member.last_name} ({allotment.allotment_month.strftime('%b %Y')})",
+        'button_text': "Save Changes"
+    }
+    return render(request, 'crew_management/finance/monthly_allotment_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def monthly_allotment_delete(request, pk):
+    allotment = get_object_or_404(MonthlyAllotment, pk=pk)
+    crew_pk = allotment.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET': # Allowing GET for simpler JS
+        create_audit_log(
+            request.user, 'DELETE', model_instance=allotment,
+            description=f"Deleted Monthly Allotment for {allotment.crew_member.first_name} {allotment.crew_member.last_name} for {allotment.allotment_month.strftime('%b %Y')}.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        allotment.delete()
+        messages.success(request, "Monthly allotment deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request.")
+    return redirect('crew_allotment_list', crew_pk=crew_pk)
+
+
+@login_required
+@user_passes_test(is_staff)
+def crew_financial_obligation_list(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
+    obligations = FinancialObligation.objects.filter(crew_member=crew_member).order_by('-due_date')
+    context = {
+        'crew': crew_member,
+        'obligations': obligations,
+        'title': f"Financial Obligations for {crew_member.first_name} {crew_member.last_name}"
+    }
+    return render(request, 'crew_management/finance/financial_obligation_list.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def financial_obligation_add(request, crew_pk):
+    crew_member = get_object_or_404(CrewMember, pk=crew_pk)
+    if request.method == 'POST':
+        form = FinancialObligationForm(request.POST)
+        if form.is_valid():
+            obligation = form.save(commit=False)
+            obligation.crew_member = crew_member
+            obligation.save()
+            messages.success(request, f"Financial obligation for {crew_member.first_name} added successfully.")
+            create_audit_log(
+                request.user, 'CREATE', model_instance=obligation,
+                description=f"Added Financial Obligation '{obligation.get_obligation_type_display()}' for {crew_member.first_name} {crew_member.last_name}.",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            return redirect('crew_financial_obligation_list', crew_pk=crew_member.pk)
+        else:
+            messages.error(request, "Error adding financial obligation. Please check the form.")
+    else:
+        form = FinancialObligationForm()
+    context = {
+        'form': form,
+        'crew': crew_member,
+        'title': f"Add Financial Obligation for {crew_member.first_name} {crew_member.last_name}",
+        'button_text': "Add Obligation"
+    }
+    return render(request, 'crew_management/finance/financial_obligation_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def financial_obligation_detail(request, pk):
+    obligation = get_object_or_404(FinancialObligation, pk=pk)
+    crew_member = obligation.crew_member
+    context = {
+        'obligation': obligation,
+        'crew': crew_member,
+        'title': f"Obligation Details for {crew_member.first_name} {crew_member.last_name} ({obligation.get_obligation_type_display()})"
+    }
+    return render(request, 'crew_management/finance/financial_obligation_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def financial_obligation_edit(request, pk):
+    obligation = get_object_or_404(FinancialObligation, pk=pk)
+    crew_member = obligation.crew_member
+    if request.method == 'POST':
+        # Prepare initial data, converting JSONField to string for comparison if needed
+        initial_data = {field.name: getattr(obligation, field.name) for field in obligation._meta.fields if field.name not in ['id', 'crew_member', 'created_at', 'updated_at']}
+        # Special handling for JSONField for initial data
+        if 'ssb_cdc_numbers' in initial_data and initial_data['ssb_cdc_numbers'] is not None:
+             initial_data['ssb_cdc_numbers'] = json.dumps(initial_data['ssb_cdc_numbers'])
+
+        form = FinancialObligationForm(request.POST, instance=obligation)
+        if form.is_valid():
+            updated_obligation = form.save()
+            messages.success(request, f"Financial obligation for {crew_member.first_name} ({updated_obligation.get_obligation_type_display()}) updated successfully.")
+
+            changed_fields_detail = {}
+            for field_name, new_value in form.cleaned_data.items():
+                if field_name not in ['id', 'crew_member', 'created_at', 'updated_at']:
+                    old_value = initial_data.get(field_name) # This is the string/raw value for JSONField
+                    if field_name == 'ssb_cdc_numbers': # Compare parsed JSON for actual change
+                        old_value_parsed = json.loads(old_value) if old_value else None
+                        new_value_parsed = new_value # This is already parsed JSON from clean method
+                        if old_value_parsed != new_value_parsed:
+                             changed_fields_detail[field_name] = {
+                                'old': old_value, # Store raw string for clarity in audit
+                                'new': json.dumps(new_value_parsed)
+                             }
+                    elif field_name == 'contract_vessel':
+                        old_value_display = str(Vessel.objects.filter(pk=old_value).first()) if old_value else 'None'
+                        new_value_display = str(new_value) if new_value else 'None'
+                        if old_value != new_value:
+                            changed_fields_detail[field_name] = {
+                                'old': old_value_display,
+                                'new': new_value_display
+                            }
+                    elif old_value != new_value:
+                        changed_fields_detail[field_name] = {
+                            'old': str(old_value),
+                            'new': str(new_value)
+                        }
+            
+            description_parts = [f"Updated Financial Obligation '{updated_obligation.get_obligation_type_display()}' for {crew_member.first_name} {crew_member.last_name}."]
+            if changed_fields_detail:
+                description_parts.append("Changes:")
+                for field, values in changed_fields_detail.items():
+                    description_parts.append(f"  {field}: '{values['old']}' -> '{values['new']}'")
+            else:
+                description_parts.append("No significant data changes detected.")
+
+            create_audit_log(
+                request.user, 'UPDATE', model_instance=updated_obligation,
+                description="\n".join(description_parts),
+                ip_address=request.META.get('REMOTE_ADDR'),
+                changes=changed_fields_detail
+            )
+            return redirect('financial_obligation_detail', pk=updated_obligation.pk)
+        else:
+            messages.error(request, "Error updating financial obligation. Please check the form.")
+    else:
+        # For GET request, convert JSONField back to string for Textarea display
+        form = FinancialObligationForm(instance=obligation)
+        if obligation.ssb_cdc_numbers:
+            form.initial['ssb_cdc_numbers'] = json.dumps(obligation.ssb_cdc_numbers, indent=2) # Pretty print JSON
+
+    context = {
+        'form': form,
+        'obligation': obligation,
+        'crew': crew_member,
+        'title': f"Edit Financial Obligation for {crew_member.first_name} {crew_member.last_name} ({obligation.get_obligation_type_display()})",
+        'button_text': "Save Changes"
+    }
+    return render(request, 'crew_management/finance/financial_obligation_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff)
+def financial_obligation_delete(request, pk):
+    obligation = get_object_or_404(FinancialObligation, pk=pk)
+    crew_pk = obligation.crew_member.pk
+    if request.method == 'POST' or request.method == 'GET':
+        create_audit_log(
+            request.user, 'DELETE', model_instance=obligation,
+            description=f"Deleted Financial Obligation '{obligation.get_obligation_type_display()}' for {obligation.crew_member.first_name} {obligation.crew_member.last_name}.",
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+        obligation.delete()
+        messages.success(request, "Financial obligation deleted successfully.")
+    else:
+        messages.warning(request, "Deletion requires a POST request.")
+    return redirect('crew_financial_obligation_list', crew_pk=crew_pk)
+
+
+# --- Audit Log View ---
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import F, Q
+
+@login_required
+@user_passes_test(is_superuser_only)
 def audit_log_list(request):
     # Manual check for superuser access
     if not request.user.is_superuser:
         messages.error(request, "You are not authorized to view the Audit Log. Only superusers can access this feature.")
-        return redirect('dashboard') # Redirect to dashboard instead of login page
+        return redirect('dashboard')
 
     logs = AuditLog.objects.all()
 
-    # --- Filtering Logic (remains the same) ---
+    # --- Filtering Logic ---
     user_id = request.GET.get('user')
     action_type = request.GET.get('action_type')
     model_name = request.GET.get('model_name')
@@ -1847,7 +2093,7 @@ def audit_log_list(request):
 
     logs = logs.order_by('-timestamp')
 
-    # --- Pagination (remains the same) ---
+    # --- Pagination ---
     paginator = Paginator(logs, 25)
     page = request.GET.get('page')
     try:
@@ -1857,10 +2103,12 @@ def audit_log_list(request):
     except EmptyPage:
         logs_paged = paginator.page(paginator.num_pages)
 
-    # Prepare filter options for the template (remains the same)
+
+    # Prepare filter options for the template
     users_with_logs = User.objects.filter(auditlog__isnull=False).distinct().order_by('username')
     action_types_from_choices = AuditLog.ACTION_CHOICES
     model_names_with_logs = AuditLog.objects.values_list('model_name', flat=True).distinct().exclude(model_name__isnull=True).order_by('model_name')
+
 
     context = {
         'logs': logs_paged,
@@ -1876,44 +2124,15 @@ def audit_log_list(request):
     }
     return render(request, 'crew_management/audit_log_list.html', context)
 
-from . import utils
 
-@login_required
-def dashboard(request):
-    # ... existing total_crew, crew_status_counts ...
-
-    # Get alerts using the new utility function
-    alerts_data = utils.get_alert_documents_and_signoffs()
-
-    # ... existing upcoming_sign_offs (you might replace this with alerts_data['upcoming_signoffs_crew']) ...
-
-    context = {
-        # ... existing context variables ...
-        'expiring_documents': alerts_data['expiring_soon_docs'], # Use the 60-day data
-        'expired_documents': alerts_data['expired_docs'],
-        'upcoming_sign_offs': alerts_data['upcoming_signoffs_crew'], # Use the 60-day data
-    }
-    return render(request, 'crew_management/dashboard.html', context)
-
-# crew_management/views.py
-
-# ... (existing imports) ...
-from django.conf import settings # Ensure settings is imported
+# --- Alert Email Preview & Manual Send ---
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-# Import the utility functions
-from crew_management import utils
-
-
-# ... (your existing create_audit_log, is_staff, is_superuser_only, and all other views) ...
-
 @login_required
-@user_passes_test(is_superuser_only) # Only superusers can view/send alerts
+@user_passes_test(is_superuser_only) # Only superusers can view/send alerts manually
 def view_and_send_alerts(request):
-    # This view will generate the content for display and optionally send.
-
     # --- 1. Get Alert Data ---
     alerts_data = utils.get_alert_documents_and_signoffs()
     expiring_soon_docs = alerts_data['expiring_soon_docs']
@@ -1927,7 +2146,7 @@ def view_and_send_alerts(request):
         if recommendations:
             all_recommendations[signing_off_crew] = recommendations
 
-    # --- Prepare Email Content Context (same as for the management command) ---
+    # --- Prepare Email Content Context ---
     email_context = {
         'expiring_soon_docs': expiring_soon_docs,
         'expired_docs': expired_docs,
@@ -1938,17 +2157,14 @@ def view_and_send_alerts(request):
         'alert_days_crew_signoff': settings.ALERT_DAYS_CREW_SIGNOFF,
     }
 
-    # --- Optional: Trigger Email Sending if requested (e.g., via POST or a specific GET param) ---
-    # For user safety and idempotency, it's best to trigger sending via a POST request
-    # or to have a separate "confirm and send" step.
-    # For the immediate "generate and send at same time" click, we'll keep it simple for now,
-    # but be aware of implications.
+    email_html_content = render_to_string('crew_management/emails/alert_email.html', email_context)
+
+    # --- Optional: Trigger Email Sending if requested via POST ---
     email_sent_status = False
     if request.method == 'POST' and request.POST.get('send_now') == 'true':
         subject = f"CMS Daily Alerts & Crew Recommendations - {datetime.date.today().strftime('%Y-%m-%d')}"
         recipient_list = [settings.ALERT_RECIPIENT_EMAIL]
-        html_message = render_to_string('crew_management/emails/alert_email.html', email_context)
-        plain_message = strip_tags(html_message)
+        plain_message = strip_tags(email_html_content) # Use the already rendered HTML content for plain text
 
         try:
             send_mail(
@@ -1956,7 +2172,7 @@ def view_and_send_alerts(request):
                 plain_message,
                 settings.DEFAULT_FROM_EMAIL,
                 recipient_list,
-                html_message=html_message,
+                html_message=email_html_content,
                 fail_silently=False,
             )
             messages.success(request, f"Alert email successfully sent to {settings.ALERT_RECIPIENT_EMAIL}.")
@@ -1978,9 +2194,32 @@ def view_and_send_alerts(request):
 
     # Render the email preview page
     context = {
-        'email_html_content': html_message if 'html_message' in locals() else render_to_string('crew_management/emails/alert_email.html', email_context),
+        'email_html_content': email_html_content, # Pass the generated HTML to the template
         'email_sent': email_sent_status,
         'title': "Alert Email Preview & Manual Send",
         'recipient_email': settings.ALERT_RECIPIENT_EMAIL,
     }
     return render(request, 'crew_management/alert_email_preview.html', context)
+
+@login_required
+def dashboard(request):
+    total_crew = CrewMember.objects.count()
+    crew_by_status_query = CrewMember.objects.values('crew_status').annotate(count=models.Count('crew_status'))
+    crew_status_counts = {item['crew_status']: item['count'] for item in crew_by_status_query}
+
+    # Get alerts using the utility function
+    alerts_data = utils.get_alert_documents_and_signoffs()
+
+    # NEW: Get financial summary data
+    financial_summary = utils.get_financial_summary()
+
+    context = {
+        'total_crew': total_crew,
+        'crew_status_counts': crew_status_counts,
+        'expiring_documents': alerts_data['expiring_soon_docs'],
+        'expired_documents': alerts_data['expired_docs'],
+        'upcoming_sign_offs': alerts_data['upcoming_signoffs_crew'],
+        'financial_summary_placeholder': 'Financial snapshot data will appear here.', # This placeholder can now be removed or replaced in HTML
+        'financial_summary': financial_summary, # NEW: Pass financial summary to template
+    }
+    return render(request, 'crew_management/dashboard.html', context)

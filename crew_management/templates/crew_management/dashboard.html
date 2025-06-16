@@ -215,7 +215,21 @@
             border-radius: 6px;
             padding: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex; /* Added for vertical alignment of content and button at bottom */
+            flex-direction: column; /* Stack content vertically */
         }
+        .card-content { /* New div to contain flexible content */
+            flex-grow: 1;
+        }
+        .card-links { /* New div for buttons at the bottom of card */
+            margin-top: 15px; /* Space above buttons */
+            text-align: center;
+        }
+        .card-links .action-link-button {
+            padding: 8px 15px; /* Slightly smaller buttons for within cards */
+            font-size: 0.9em;
+        }
+
         .card h2, .card h3, .card p, .card ul { /* Ensured content within cards is left-aligned */
             text-align: left;
         }
@@ -352,73 +366,95 @@
             <h1>Agency Dashboard</h1>
 
             <div class="card">
-                <h2>Crew Overview</h2>
-                <p><strong>Total Crew Members:</strong> {{ total_crew }}</p>
-                <h3>Crew by Status:</h3>
-                <ul>
-                    {% for status, count in crew_status_counts.items %}
-                        <li class="status-item">
-                            <strong>{{ status }}:</strong> <span>{{ count }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <div class="card">
-                <h2>Document Alerts</h2>
-                <h3>Expiring Soon (next 3 months):</h3>
-                {% if expiring_documents %}
+                <div class="card-content">
+                    <h2>Crew Overview</h2>
+                    <p><strong>Total Crew Members:</strong> {{ total_crew }}</p>
+                    <h3>Crew by Status:</h3>
                     <ul>
-                        {% for doc in expiring_documents %}
-                            <li class="expiring-soon">
-                                <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
-                                    {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expires: {{ doc.expiry_date|date:"M j, Y" }})
-                                </a>
+                        {% for status, count in crew_status_counts.items %}
+                            <li class="status-item">
+                                <strong>{{ status }}:</strong> <span>{{ count }}</span>
                             </li>
                         {% endfor %}
                     </ul>
-                {% else %}
-                    <p class="no-data">No documents expiring soon.</p>
-                {% endif %}
-
-                <h3>Recently Expired:</h3>
-                {% if expired_documents %}
-                    <ul>
-                        {% for doc in expired_documents %}
-                            <li class="expired">
-                                <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
-                                    {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expired: {{ doc.expiry_date|date:"M j, Y" }})
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="no-data">No recently expired documents.</p>
-                {% endif %}
+                </div>
+                <div class="card-links">
+                    <a href="{% url 'crew_list' %}" class="action-link-button">View All Crew</a>
+                </div>
             </div>
 
             <div class="card">
-                <h2>Upcoming Crew Changes</h2>
-                <h3>Projected Sign-offs (next 6 months):</h3>
-                {% if upcoming_sign_offs %}
-                    <ul>
-                        {% for crew in upcoming_sign_offs %}
-                            <li class="signoff-soon">
-                                <a href="{% url 'crew_profile_detail' pk=crew.id %}">
-                                    {{ crew.first_name }} {{ crew.last_name }} (Rank: {{ crew.current_rank }}) - Sign-off: {{ crew.relieving_plan_date|date:"F j, Y" }}
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="no-data">No upcoming sign-offs.</p>
-                {% endif %}
+                <div class="card-content">
+                    <h2>Document Alerts</h2>
+                    <h3>Expiring Soon (next {{ ALERT_DAYS_DOCUMENT_EXPIRY }} days):</h3>
+                    {% if expiring_documents %}
+                        <ul>
+                            {% for doc in expiring_documents %}
+                                <li class="expiring-soon">
+                                    <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
+                                        {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expires: {{ doc.expiry_date|date:"M j, Y" }})
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="no-data">No documents expiring soon.</p>
+                    {% endif %}
+
+                    <h3>Recently Expired:</h3>
+                    {% if expired_documents %}
+                        <ul>
+                            {% for doc in expired_documents %}
+                                <li class="expired">
+                                    <a href="{% url 'crew_profile_detail' pk=doc.crew_member.id %}">
+                                        {{ doc.crew_member.first_name }} {{ doc.crew_member.last_name }} - {{ doc.document_name }} (Expired: {{ doc.expiry_date|date:"M j, Y" }})
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="no-data">No recently expired documents.</p>
+                    {% endif %}
+                </div>
+                <div class="card-links">
+                    <a href="{% url 'crew_list' %}" class="action-link-button">View All Documents</a> {# Links to crew list, as no master document list exists yet #}
+                </div>
             </div>
 
             <div class="card">
-                <h2>Financial Snapshot</h2>
-                <p>{{ financial_summary_placeholder }}</p>
-                <p class="no-data">Detailed financial summary will be available here once financial modules are developed.</p>
+                <div class="card-content">
+                    <h2>Upcoming Crew Changes</h2>
+                    <h3>Projected Sign-offs (next {{ ALERT_DAYS_CREW_SIGNOFF }} days):</h3>
+                    {% if upcoming_sign_offs %}
+                        <ul>
+                            {% for crew in upcoming_sign_offs %}
+                                <li class="signoff-soon">
+                                    <a href="{% url 'crew_profile_detail' pk=crew.id %}">
+                                        {{ crew.first_name }} {{ crew.last_name }} (Rank: {{ crew.current_rank }}) - Sign-off: {{ crew.relieving_plan_date|date:"F j, Y" }}
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="no-data">No upcoming sign-offs.</p>
+                    {% endif %}
+                </div>
+                <div class="card-links">
+                    <a href="{% url 'crew_list' %}" class="action-link-button">View All Crew Changes</a> {# Links to crew list, as no master crew change list exists yet #}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-content">
+                    <h2>Financial Snapshot</h2>
+                    <p><strong>Total Allotments Pending:</strong> {{ financial_summary.total_allotments_pending|floatformat:2 }} USD</p>
+                    <p><strong>Total Allotments Paid:</strong> {{ financial_summary.total_allotments_paid|floatformat:2 }} USD</p>
+                    <p><strong>Total Obligations Outstanding:</strong> {{ financial_summary.total_obligations_outstanding|floatformat:2 }} USD</p>
+                    <p><strong>Total Obligations Paid:</strong> {{ financial_summary.total_obligations_paid|floatformat:2 }} USD</p>
+                </div>
+                <div class="card-links">
+                    <a href="{% url 'crew_list' %}" class="action-link-button">View All Crew Financials</a>
+                </div>
             </div>
 
             <div class="dashboard-links">
@@ -429,7 +465,7 @@
                     <a href="/admin/">Go to Admin Panel</a>
                     <a href="{% url 'crew_create' %}">+ Add New Crew Member</a>
                     <a href="{% url 'audit_log_list' %}" class="action-link-button">View Audit Log</a>
-                    <a href="{% url 'view_and_send_alerts' %}" class="action-link-button">View & Send Alerts</a> {# NEW BUTTON FOR ALERTS #}
+                    <a href="{% url 'view_and_send_alerts' %}" class="action-link-button">View & Send Alerts</a>
                 {% endif %}
             </div>
         </div>
